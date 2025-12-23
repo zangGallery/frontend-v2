@@ -537,8 +537,9 @@ const MARKETPLACE_ABI = [
         inputs: [
             { name: "_tokenId", type: "uint256", indexed: true },
             { name: "_seller", type: "address", indexed: true },
-            { name: "_price", type: "uint256", indexed: false },
+            { name: "_listingId", type: "uint256", indexed: false },
             { name: "amount", type: "uint256", indexed: false },
+            { name: "_price", type: "uint256", indexed: false },
         ],
     },
     {
@@ -557,6 +558,7 @@ const MARKETPLACE_ABI = [
             { name: "_tokenId", type: "uint256", indexed: true },
             { name: "_buyer", type: "address", indexed: true },
             { name: "_seller", type: "address", indexed: true },
+            { name: "_listingId", type: "uint256", indexed: false },
             { name: "_amount", type: "uint256", indexed: false },
             { name: "_price", type: "uint256", indexed: false },
         ],
