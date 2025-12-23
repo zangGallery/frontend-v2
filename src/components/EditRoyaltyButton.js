@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
 import config from "../config";
+import getGasSettings from "../common/gas";
 import Decimal from "decimal.js";
 
 import { useWalletProvider } from "../common/provider";
@@ -16,6 +17,7 @@ export default function EditRoyaltyButton({
     id,
     currentRoyaltyPercentage,
     onUpdate,
+    minimal = false,
 }) {
     const zangAddress = config.contractAddresses.v1.zang;
     const zangABI = v1.zang;
@@ -57,18 +59,19 @@ export default function EditRoyaltyButton({
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            walletProvider
+            walletProvider,
         );
         const contractWithSigner = contract.connect(walletProvider.getSigner());
         const transactionFunction = async () =>
             await contractWithSigner.decreaseRoyaltyNumerator(
                 id,
-                effectiveRoyaltyPercentage
+                effectiveRoyaltyPercentage,
+                getGasSettings(),
             );
 
         const { success } = await handleTransaction(
             transactionFunction,
-            `Edit royalty for NFT #${id}`
+            `Edit royalty for NFT #${id}`,
         );
         if (success && onUpdate) {
             onUpdate(id);
@@ -76,12 +79,33 @@ export default function EditRoyaltyButton({
     };
 
     return (
-        <div>
+        <>
             <button
-                className="button is-black is-small"
+                className={
+                    minimal
+                        ? "text-ink-500 hover:text-ink-300 transition-colors"
+                        : "px-3 py-1.5 text-sm font-medium rounded-lg bg-ink-700 text-ink-200 hover:bg-ink-600 hover:text-white transition-colors"
+                }
                 onClick={() => setEditModalOpen(true)}
+                title="Edit royalty"
             >
-                Edit Royalty
+                {minimal ? (
+                    <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
+                    </svg>
+                ) : (
+                    "Edit Royalty"
+                )}
             </button>
             <EditRoyaltyModal
                 isOpen={editModalOpen}
@@ -89,6 +113,6 @@ export default function EditRoyaltyButton({
                 onClose={editRoyalty}
                 currentRoyaltyPercentage={currentRoyaltyPercentage}
             />
-        </div>
+        </>
     );
 }

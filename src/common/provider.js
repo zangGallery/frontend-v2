@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import config from "../config";
 
-var defaultReadProvider = new ethers.providers.AlchemyProvider(
-    config.networks.main.chainId,
-    config.api_keys.alchemy
+// Use JsonRpcProvider for Base network
+var defaultReadProvider = new ethers.providers.JsonRpcProvider(
+    config.networks.main.rpcUrl,
+    {
+        chainId: config.networks.main.chainId,
+        name: config.networks.main.name.toLowerCase(),
+    },
 );
 
 var _readProvider = defaultReadProvider;
@@ -68,10 +72,17 @@ const restoreDefaultReadProvider = () => {
     }
 };
 
-const ensProvider = new ethers.providers.AlchemyProvider(
-    config.networks.ens.chainId,
-    config.api_keys.alchemy_mainnet
-);
+// ENS provider for mainnet (for ENS resolution)
+// Use Alchemy if available, otherwise fallback to Infura
+const ensProvider = config.api_keys.alchemy_mainnet
+    ? new ethers.providers.AlchemyProvider(
+          config.networks.ens.chainId,
+          config.api_keys.alchemy_mainnet,
+      )
+    : new ethers.providers.InfuraProvider(
+          config.networks.ens.chainId,
+          config.api_keys.infura.project_id,
+      );
 
 export {
     defaultReadProvider,

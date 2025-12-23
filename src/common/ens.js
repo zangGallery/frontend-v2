@@ -25,13 +25,13 @@ const useEns = () => {
             [address]: {
                 value: ensAddress,
                 expiration: new Date(
-                    new Date().getTime() + config.ens.cacheExpiration
+                    new Date().getTime() + config.ens.cacheExpiration,
                 ),
             },
         }));
 
         setQueries((currentQueries) =>
-            currentQueries.filter((query) => query !== address)
+            currentQueries.filter((query) => query !== address),
         );
 
         return ensAddress;
@@ -58,8 +58,8 @@ const useEns = () => {
         const update = addressShouldBeUpdated(address);
 
         if (update) {
-            // Note: this doesn't block the function's execution
-            updateEns(address);
+            // Defer the state update to avoid calling during render
+            setTimeout(() => updateEns(address), 0);
         }
 
         return ensInfo[address]?.value;

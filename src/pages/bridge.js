@@ -1,47 +1,45 @@
 import React from "react";
-import { Helmet } from "react-helmet";
 import { Header } from "../components";
 
-var styles = {
-    lifi: {
-        height: "115vh",
-        width: "90vw",
-        border: "3px solid black",
-        padding: "2em",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        margin: "3em",
-    },
-    iframe: {
-        height: "100%",
-        width: "100%",
-    },
-};
+import "../styles/tailwind.css";
 
 export default function Bridge() {
     return (
-        <>
-            <Helmet>
-                <title>Bridge</title>
-            </Helmet>
+        <div className="min-h-screen bg-ink-950">
             <Header />
-            <div className="notification">
-                <b>Note</b>: We are not affiliated with Li.Finance.
+            <div className="max-w-4xl mx-auto px-4 py-8">
+                <div className="bg-ink-800/50 rounded-lg border border-ink-700/50 p-4 mb-6">
+                    <p className="text-ink-300">
+                        <span className="font-semibold text-ink-100">Note</span>
+                        : We are not affiliated with Li.Finance.
+                    </p>
+                </div>
+                <div
+                    className="bg-ink-900/50 rounded-lg border border-ink-700/50 overflow-hidden"
+                    style={{ height: "80vh" }}
+                >
+                    <iframe
+                        id="lifi-iframe"
+                        className="w-full h-full"
+                        src="https://li.finance/embed?fromChain=eth&toChain=base&toToken=0x0000000000000000000000000000000000000000"
+                        scrolling="auto"
+                        title="Li.Fi Widget"
+                        frameBorder="0"
+                    />
+                </div>
             </div>
-            <div id="lifi-widget" style={styles.lifi}>
-                <iframe
-                    id="lifi-iframe"
-                    style={styles.iframe}
-                    src="https://li.finance/embed?fromChain=eth&amp;toChain=pol&amp;toToken=0x0000000000000000000000000000000000000000"
-                    scrolling="auto"
-                    allowtransparency="true"
-                    title="Li.Fi Widget"
-                    class="lifi__widget-iframe"
-                    frameborder="0"
-                ></iframe>
-            </div>
+        </div>
+    );
+}
+
+export function Head() {
+    return (
+        <>
+            <title>Bridge - zang</title>
+            <meta
+                name="description"
+                content="Bridge assets to Base for zang.gallery"
+            />
         </>
     );
 }

@@ -1,161 +1,65 @@
-import React, { useState, useEffect } from "react";
-import { ethers } from "ethers";
-import { v1 } from "../common/abi";
-import config from "../config";
+import React from "react";
 
 import BuyButton from "./BuyButton";
 import FulfillabilityInfo from "./FulfillabilityInfo";
-import EditButton from "./EditButton";
 import Listing from "./Listing";
-
-import { useEns } from "../common/ens";
-import ListButton from "./ListButton";
-import DelistButton from "./DelistButton";
 import Address from "../components/Address";
-import { useRecoilState } from "recoil";
-import { formatError, standardErrorState } from "../common/error";
 
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-
-import { shortenAddress } from "../common/utils";
 
 export default function Listings({
     walletProvider,
     id,
     listingGroups,
     walletAddress,
-    userBalance,
-    userAvailableAmount,
     onUpdate,
+    showOnlyOthers = false,
+    ethPrice = null,
 }) {
-    const zangAddress = config.contractAddresses.v1.zang;
-    const zangABI = v1.zang;
-
-    const marketplaceAddress = config.contractAddresses.v1.marketplace;
-
-    const { lookupEns } = useEns();
-
-    const [isApproved, setIsApproved] = useState(false);
-
-    const userListingGroup = () =>
-        listingGroups
-            ? listingGroups.find((group) => group.seller === walletAddress)
-            : null;
     const otherListingGroups = () =>
         listingGroups
-            ? listingGroups.filter((group) => group.seller !== walletAddress)
+            ? listingGroups.filter(
+                  (group) => !showOnlyOthers || group.seller !== walletAddress,
+              )
             : null;
-
-    const [_, setStandardError] = useRecoilState(standardErrorState);
-
-    const checkApproval = async () => {
-        if (!id || !walletAddress) return;
-
-        const zangContract = new ethers.Contract(
-            zangAddress,
-            zangABI,
-            walletProvider
-        );
-
-        try {
-            const approved = await zangContract.isApprovedForAll(
-                walletAddress,
-                marketplaceAddress
-            );
-            setIsApproved(approved);
-        } catch (e) {
-            setStandardError(formatError(e));
-        }
-    };
-
-    useEffect(checkApproval, [id, walletAddress]);
 
     return (
         <div>
-            {userBalance ? (
-                <ListButton
-                    id={id}
-                    userBalance={userBalance}
-                    userAvailableAmount={userAvailableAmount}
-                    onUpdate={onUpdate}
-                    walletAddress={walletAddress}
-                />
-            ) : (
-                <></>
-            )}
-            <div>
-                {userListingGroup() ? (
-                    <div>
-                        <h4 className="title is-4 m-0 mt-2">Your Listings</h4>
-                        <div>
-                            <FulfillabilityInfo group={userListingGroup()} />
-                            {userListingGroup().listings.map((listing) => (
-                                <div key={listing.id}>
-                                    <Listing
-                                        price={listing.price}
-                                        amount={listing.amount}
-                                    >
-                                        <div
-                                            className="is-flex is-justify-content-center mt-2"
-                                            style={{ width: "100%" }}
-                                        >
-                                            <EditButton
-                                                nftId={id}
-                                                listingId={listing.id}
-                                                balance={userBalance}
-                                                onUpdate={onUpdate}
-                                                oldAmount={listing.amount}
-                                                availableAmount={
-                                                    userAvailableAmount
-                                                }
-                                            />
-                                            <DelistButton
-                                                nftId={id}
-                                                listingId={listing.id}
-                                                onUpdate={onUpdate}
-                                            />
-                                        </div>
-                                    </Listing>
-                                    <hr />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <></>
-                )}
-                <h4 className="title is-4 mt-2">
-                    {userListingGroup() ? "Other Listings" : "Listings"}
-                </h4>
-                {otherListingGroups() !== null ? (
-                    otherListingGroups().length > 0 ? (
-                        otherListingGroups().map((group, index) => (
+            <h4 className="text-lg font-semibold text-white mb-4">
+                Marketplace
+            </h4>
+            {otherListingGroups() !== null ? (
+                otherListingGroups().length > 0 ? (
+                    <div className="space-y-4">
+                        {otherListingGroups().map((group, index) => (
                             <div
                                 key={"group" + index}
-                                className="block p-2 pb-5"
-                                style={{
-                                    border: "1px #eee solid",
-                                    borderRadius: "0.5em",
-                                }}
+                                className="bg-ink-800/50 rounded-xl p-4 border border-ink-700"
                             >
-                                <p className="is-size-7">SELLER</p>
-                                <p>
-                                    <Address
-                                        address={group.seller}
-                                        shorten
-                                        nChar={8}
-                                    />
-                                </p>
+                                <div className="mb-3">
+                                    <p className="text-xs text-ink-500 uppercase tracking-wide">
+                                        Seller
+                                    </p>
+                                    <p className="font-mono text-sm text-ink-200">
+                                        <Address
+                                            address={group.seller}
+                                            shorten
+                                            nChar={8}
+                                        />
+                                    </p>
+                                </div>
                                 <FulfillabilityInfo group={group} />
-
-                                <div>
+                                <div className="space-y-3 mt-4">
                                     {group.listings.map((listing) => (
-                                        <div key={listing.id}>
-                                            <hr />
+                                        <div
+                                            key={listing.id}
+                                            className="border-t border-ink-700 pt-3 first:border-t-0 first:pt-0"
+                                        >
                                             <Listing
                                                 price={listing.price}
                                                 amount={listing.amount}
+                                                ethPrice={ethPrice}
                                             >
                                                 {walletProvider ? (
                                                     <BuyButton
@@ -172,7 +76,7 @@ export default function Listings({
                                                     />
                                                 ) : (
                                                     <button
-                                                        className="button is-black"
+                                                        className="px-4 py-2 bg-ink-700 text-ink-400 rounded-lg cursor-not-allowed text-sm"
                                                         disabled
                                                     >
                                                         Connect wallet to buy
@@ -183,14 +87,21 @@ export default function Listings({
                                     ))}
                                 </div>
                             </div>
-                        ))
-                    ) : (
-                        <p>No listings.</p>
-                    )
+                        ))}
+                    </div>
                 ) : (
-                    <Skeleton height={180} />
-                )}
-            </div>
+                    <p className="text-ink-500 text-center py-8">
+                        No listings available
+                    </p>
+                )
+            ) : (
+                <Skeleton
+                    height={120}
+                    className="rounded-xl"
+                    baseColor="#27272a"
+                    highlightColor="#3f3f46"
+                />
+            )}
         </div>
     );
 }

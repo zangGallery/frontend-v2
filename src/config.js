@@ -1,22 +1,23 @@
 const config = {
     contractAddresses: {
         v1: {
-            zang: "0x62d76F41c4d538712A4404e39b2E20BA7d18FEd0",
-            marketplace: "0x59E52c8aB048022307ab4A92557a138f10a19d97",
+            zang: "0x5541ff300e9b01176b953EA3153006e36D4BA273",
+            marketplace: "0xbD5C4612084eA90847DeB475529aC74B3521498d",
         },
     },
     firstBlocks: {
         v1: {
-            polygon: {
-                zang: 25361905,
-                marketplace: 25362269,
+            base: {
+                zang: 5300011,
+                marketplace: 5300368,
             },
         },
     },
     networks: {
         main: {
-            name: "Polygon",
-            chainId: 137,
+            name: "Base",
+            chainId: 8453,
+            rpcUrl: `https://base-mainnet.g.alchemy.com/v2/${process.env.GATSBY_ALCHEMY_BASE_API_KEY}`,
         },
         ens: {
             name: "ENS",
@@ -25,6 +26,7 @@ const config = {
     },
     api_keys: {
         alchemy: process.env.GATSBY_ALCHEMY_API_KEY,
+        alchemy_base: process.env.GATSBY_ALCHEMY_BASE_API_KEY,
         alchemy_mainnet: process.env.GATSBY_ALCHEMY_MAINNET_API_KEY,
         infura: {
             project_id: "0781eeb9a06842599941233024a4218c",
@@ -34,8 +36,8 @@ const config = {
         cacheExpiration: 1000 * 60 * 2, // 2 minutes
     },
     blockExplorer: {
-        name: "PolygonScan",
-        url: "https://polygonscan.com",
+        name: "BaseScan",
+        url: "https://basescan.org",
     },
 };
 

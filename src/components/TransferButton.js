@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
 import config from "../config";
+import getGasSettings from "../common/gas";
 
 import { useWalletProvider, ensProvider } from "../common/provider";
 
@@ -16,6 +17,7 @@ export default function TransferButton({
     balance,
     availableAmount,
     onUpdate,
+    secondary = false,
 }) {
     const zangAddress = config.contractAddresses.v1.zang;
     const zangABI = v1.zang;
@@ -57,7 +59,7 @@ export default function TransferButton({
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            walletProvider
+            walletProvider,
         );
         const contractWithSigner = contract.connect(walletProvider.getSigner());
 
@@ -67,11 +69,12 @@ export default function TransferButton({
                 to,
                 id,
                 amount,
-                []
+                [],
+                getGasSettings(),
             );
         const { success } = await handleTransaction(
             transactionFunction,
-            `Transfer NFT #${id}`
+            `Transfer NFT #${id}`,
         );
         if (success && onUpdate) {
             onUpdate(id);
@@ -79,12 +82,16 @@ export default function TransferButton({
     };
 
     return (
-        <div>
+        <>
             <button
-                className="button is-black is-small mr-1"
+                className={
+                    secondary
+                        ? "w-full mt-2 py-2 text-sm text-ink-400 hover:text-white transition-colors"
+                        : "px-3 py-1.5 text-sm font-medium rounded-lg bg-ink-700 text-ink-200 hover:bg-ink-600 hover:text-white transition-colors"
+                }
                 onClick={() => setTransferModalOpen(true)}
             >
-                Gift
+                {secondary ? "or transfer to someone" : "Gift"}
             </button>
             <TransferModal
                 isOpen={transferModalOpen}
@@ -93,6 +100,6 @@ export default function TransferButton({
                 balance={balance}
                 availableAmount={availableAmount}
             />
-        </div>
+        </>
     );
 }

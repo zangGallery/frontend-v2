@@ -16,7 +16,7 @@ exports.onCreateWebpackConfig = ({ stage, actions }) => {
                 net: require.resolve("net-browserify"),
                 zlib: require.resolve("zlib-browserify"),
                 fs: require.resolve("browserify-fs"),
-                https: require.resolve("https-browserify"),
+                url: require.resolve("url/"),
             },
         },
         plugins: [

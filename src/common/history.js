@@ -11,7 +11,7 @@ const getTransferEvents = async (
     id,
     zangContract,
     relevantAddresses,
-    firstZangBlock
+    firstZangBlock,
 ) => {
     relevantAddresses = [...relevantAddresses];
     const queriedAddresses = [];
@@ -52,14 +52,13 @@ const getTransferEvents = async (
         const eventPromises = [];
 
         for (const address of currentRelevantAddresses) {
-            console.log("Querying address", address);
             queriedAddresses.push(address);
 
             if (address === null) {
                 const allTransfersFilter =
                     zangContract.filters.TransferSingle();
                 eventPromises.push(
-                    zangContract.queryFilter(allTransfersFilter)
+                    zangContract.queryFilter(allTransfersFilter),
                 );
             } else {
                 const transferOperatorFilter =
@@ -67,24 +66,24 @@ const getTransferEvents = async (
                 const transferFromFilter = zangContract.filters.TransferSingle(
                     null,
                     address,
-                    null
+                    null,
                 );
                 const transferToFilter = zangContract.filters.TransferSingle(
                     null,
                     null,
-                    address
+                    address,
                 );
 
                 eventPromises.push(
                     zangContract.queryFilter(
                         transferOperatorFilter,
-                        firstZangBlock
+                        firstZangBlock,
                     ),
                     zangContract.queryFilter(
                         transferFromFilter,
-                        firstZangBlock
+                        firstZangBlock,
                     ),
-                    zangContract.queryFilter(transferToFilter, firstZangBlock)
+                    zangContract.queryFilter(transferToFilter, firstZangBlock),
                 );
             }
         }
@@ -106,8 +105,6 @@ const getTransferEvents = async (
         }
     }
 
-    console.log("Found events:", foundEvents);
-
     return foundEvents;
 };
 
@@ -117,32 +114,32 @@ const getEvents = async (
     marketplaceContract,
     authorAddress,
     firstZangBlock,
-    firstMarketplaceBlock
+    firstMarketplaceBlock,
 ) => {
     const tokenListedFilter = marketplaceContract.filters.TokenListed(id, null);
     const tokenDelistedFilter = marketplaceContract.filters.TokenDelisted(
         id,
-        null
+        null,
     );
     const tokenPurchasedFilter = marketplaceContract.filters.TokenPurchased(
         id,
         null,
-        null
+        null,
     );
 
     const [tokenListedEvents, tokenDelistedEvents, tokenPurchasedEvents] =
         await Promise.all([
             marketplaceContract.queryFilter(
                 tokenListedFilter,
-                firstMarketplaceBlock
+                firstMarketplaceBlock,
             ),
             marketplaceContract.queryFilter(
                 tokenDelistedFilter,
-                firstMarketplaceBlock
+                firstMarketplaceBlock,
             ),
             marketplaceContract.queryFilter(
                 tokenPurchasedFilter,
-                firstMarketplaceBlock
+                firstMarketplaceBlock,
             ),
         ]);
 
@@ -169,7 +166,7 @@ const getEvents = async (
         id,
         zangContract,
         relevantAddresses,
-        firstZangBlock
+        firstZangBlock,
     );
 
     const allEvents = [
@@ -201,7 +198,7 @@ const getAllEvents = async (
     zangContract,
     marketplaceContract,
     firstZangBlock,
-    firstMarketplaceBlock
+    firstMarketplaceBlock,
 ) => {
     return await getEvents(
         null,
@@ -209,7 +206,7 @@ const getAllEvents = async (
         marketplaceContract,
         null,
         firstZangBlock,
-        firstMarketplaceBlock
+        firstMarketplaceBlock,
     );
 };
 
@@ -244,7 +241,7 @@ const computeBalances = (events) => {
     return Object.fromEntries(
         Object.keys(balances)
             .filter((address) => balances[address] != 0)
-            .map((address) => [address, balances[address]])
+            .map((address) => [address, balances[address]]),
     );
 };
 
@@ -253,8 +250,6 @@ const parseHistory = (events) => {
         return;
     }
     let parsedEvents = [];
-
-    console.log(events);
 
     for (const event of events) {
         switch (event.event) {
@@ -316,7 +311,7 @@ const parseHistory = (events) => {
     }
 
     for (const event of parsedEvents.filter(
-        (event) => event.type == "purchase"
+        (event) => event.type == "purchase",
     )) {
         // Filter out transfer and delist events that are part of the same purchase
         parsedEvents = parsedEvents.filter(
@@ -325,11 +320,9 @@ const parseHistory = (events) => {
                     (otherEvent.type == "transfer" ||
                         otherEvent.type == "delist") &&
                     event.transactionHash == otherEvent.transactionHash
-                )
+                ),
         );
     }
-
-    console.log(parsedEvents.map((e) => e.type));
 
     return parsedEvents;
 };

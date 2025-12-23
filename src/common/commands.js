@@ -9,46 +9,59 @@ import {
 const whitespaceSafeCommand = (originalCommand, prefix, suffix) => ({
     ...originalCommand,
     execute: (state, api) => {
-        // Adjust the selection to encompass the whole word if the caret is inside one
-        var newSelectionRange = (0, MarkdownUtil.selectWord)({
-            text: state.text,
-            selection: state.selection,
-        });
+        // Handle edge cases - fall back to simple insert
+        if (!state.text || !state.selection) {
+            api.replaceSelection(`${prefix}${suffix}`);
+            return;
+        }
 
-        // Replaces the current selection with the mark up
-        var state1 = api.setSelectionRange(newSelectionRange);
-        const text = state1.selectedText;
+        try {
+            // Adjust the selection to encompass the whole word if the caret is inside one
+            var newSelectionRange = MarkdownUtil.selectWord({
+                text: state.text,
+                selection: state.selection,
+            });
 
-        const actualTextIndex = text.search(/\S|$/);
-        const leadingWhitespace = text.substring(0, actualTextIndex);
+            // Replaces the current selection with the mark up
+            var state1 = api.setSelectionRange(newSelectionRange);
+            const text = state1.selectedText || "";
 
-        const trailingWhitespaceIndex = text.search(/\s+$/);
-        const trailingWhitespace =
-            trailingWhitespaceIndex == -1
-                ? ""
-                : text.substring(trailingWhitespaceIndex, text.length);
+            const actualTextIndex = text.search(/\S|$/);
+            const leadingWhitespace = text.substring(0, actualTextIndex);
 
-        // Adjust the selection to not contain the prefix and suffix
-        var state2 = api.replaceSelection(
-            leadingWhitespace.concat(
-                prefix,
-                state1.selectedText.trim(),
-                suffix,
-                trailingWhitespace
-            )
-        );
+            const trailingWhitespaceIndex = text.search(/\s+$/);
+            const trailingWhitespace =
+                trailingWhitespaceIndex === -1
+                    ? ""
+                    : text.substring(trailingWhitespaceIndex, text.length);
 
-        api.setSelectionRange({
-            start:
-                state2.selection.end -
-                prefix.length -
-                state1.selectedText.length +
-                leadingWhitespace.length,
-            end:
-                state2.selection.end -
-                suffix.length -
-                trailingWhitespace.length,
-        });
+            // Adjust the selection to not contain the prefix and suffix
+            var state2 = api.replaceSelection(
+                leadingWhitespace.concat(
+                    prefix,
+                    state1.selectedText.trim(),
+                    suffix,
+                    trailingWhitespace,
+                ),
+            );
+
+            api.setSelectionRange({
+                start:
+                    state2.selection.end -
+                    prefix.length -
+                    state1.selectedText.length +
+                    leadingWhitespace.length,
+                end:
+                    state2.selection.end -
+                    suffix.length -
+                    trailingWhitespace.length,
+            });
+        } catch (e) {
+            // Fallback to simple wrap
+            api.replaceSelection(
+                `${prefix}${state.selectedText || ""}${suffix}`,
+            );
+        }
     },
 });
 

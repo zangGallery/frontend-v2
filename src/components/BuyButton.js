@@ -1,6 +1,7 @@
 import React from "react";
 import { useState } from "react";
 import config from "../config";
+import getGasSettings from "../common/gas";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
 import { useRecoilState } from "recoil";
@@ -54,7 +55,7 @@ export default function BuyButton({
         const contract = new ethers.Contract(
             marketplaceAddress,
             marketplaceABI,
-            walletProvider
+            walletProvider,
         );
         const contractWithSigner = contract.connect(walletProvider.getSigner());
 
@@ -66,10 +67,11 @@ export default function BuyButton({
         const transactionFunction = async () =>
             await contractWithSigner.buyToken(nftId, listingId, amount, {
                 value: price.mul(amount),
+                ...getGasSettings(),
             });
         const { success } = await handleTransaction(
             transactionFunction,
-            `Buy NFTs #${nftId}`
+            `Buy NFTs #${nftId}`,
         );
         if (success && onUpdate) {
             onUpdate(nftId);
@@ -77,9 +79,13 @@ export default function BuyButton({
     };
 
     return (
-        <div>
+        <>
             <button
-                className="button is-black"
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    sellerBalance === 0
+                        ? "bg-ink-700 text-ink-500 cursor-not-allowed"
+                        : "bg-accent-cyan text-ink-950 hover:bg-accent-cyan/90"
+                }`}
                 disabled={sellerBalance === 0}
                 onClick={() => setBuyModalOpen(true)}
             >
@@ -93,6 +99,6 @@ export default function BuyButton({
                 sellerBalance={sellerBalance}
                 price={price}
             />
-        </div>
+        </>
     );
 }

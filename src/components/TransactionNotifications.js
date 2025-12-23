@@ -1,111 +1,67 @@
 import React, { useEffect } from "react";
 import { useTransactionStatus } from "../common/transaction_status";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
-
-import config from "../config";
+import { Toaster, toast } from "sonner";
 import ViewOnExplorer from "./ViewOnExplorer";
 
 export default function TransactionNotifications() {
     const { register } = useTransactionStatus();
 
-    const createNotification = (transactionId) => {
-        toast.loading(<></>, {
-            autoClose: false,
-            draggable: false,
-            pauseOnHover: false,
-            progress: undefined,
-            closeButton: (
-                <p>
-                    <span onClick={() => toast.dismiss(transactionId)}>
-                        <FontAwesomeIcon icon={faTimes} />
-                    </span>
-                </p>
-            ),
-            position: "bottom-right",
-            returns: false,
-            toastId: transactionId,
-        });
-    };
-
-    const maybeCreate = (transactionId) => {
-        if (!toast.isActive(transactionId)) {
-            createNotification(transactionId);
-        }
-    };
-
     const onTransaction = (transactionId, status) => {
-        const defaultTitle = (
-            <h1 className="is-size-5 has-text-black">{status.name}</h1>
-        );
         const viewOnExplorer = status.hash ? (
-            <p>
-                <ViewOnExplorer hash={status.hash} />
-            </p>
-        ) : (
-            <></>
-        );
-
-        maybeCreate(transactionId);
+            <ViewOnExplorer hash={status.hash} />
+        ) : null;
 
         if (status.status === "pending") {
-            toast.update(transactionId, {
-                render: (
-                    <div>
-                        {defaultTitle}
-                        {status.content || <p>Waiting for approval</p>}
-                    </div>
-                ),
+            toast.loading(status.content || "Waiting for approval...", {
+                id: transactionId,
+                description: status.name,
             });
         } else if (status.status === "approved") {
-            toast.update(transactionId, {
-                render: (
-                    <div>
-                        {defaultTitle}
-                        {status.content || (
-                            <div>
-                                <p>Transaction approved</p>
-                                {viewOnExplorer}
-                            </div>
-                        )}
+            toast.loading(
+                status.content || (
+                    <div className="space-y-2">
+                        <p>Transaction approved, confirming...</p>
+                        {viewOnExplorer}
                     </div>
                 ),
-            });
+                {
+                    id: transactionId,
+                    description: status.name,
+                },
+            );
         } else if (status.status === "success") {
-            toast.update(transactionId, {
-                render: (
-                    <div>
-                        {defaultTitle}
-                        {status.content || (
-                            <div>
-                                <p>Transaction mined</p>
-                                {viewOnExplorer}
-                            </div>
-                        )}
+            toast.success(
+                status.content || (
+                    <div className="space-y-2">
+                        <p>Transaction confirmed!</p>
+                        {viewOnExplorer}
                     </div>
                 ),
-                type: "success",
-                isLoading: false,
-            });
+                {
+                    id: transactionId,
+                    description: status.name,
+                    duration: 8000,
+                },
+            );
         } else if (status.status === "error") {
-            toast.update(transactionId, {
-                render: (
-                    <div>
-                        {defaultTitle}
-                        {status.content || (
-                            <div>
-                                <p>Transaction failed</p>
-                                <p>{status.errorMessage}</p>
-                                {viewOnExplorer}
-                            </div>
+            toast.error(
+                status.content || (
+                    <div className="space-y-2">
+                        <p>Transaction failed</p>
+                        {status.errorMessage && (
+                            <p className="text-xs text-ink-400 break-words">
+                                {status.errorMessage}
+                            </p>
                         )}
+                        {viewOnExplorer}
                     </div>
                 ),
-                type: "error",
-                isLoading: false,
-            });
+                {
+                    id: transactionId,
+                    description: status.name,
+                    duration: 10000,
+                },
+            );
         }
     };
 
@@ -114,15 +70,19 @@ export default function TransactionNotifications() {
     }, []);
 
     return (
-        <ToastContainer
-            position="top-right"
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
+        <Toaster
+            position="bottom-right"
+            theme="dark"
+            toastOptions={{
+                style: {
+                    background: "#18181b",
+                    border: "1px solid #27272a",
+                    color: "#fafafa",
+                },
+                className: "sonner-toast",
+            }}
+            richColors
+            closeButton
         />
     );
 }

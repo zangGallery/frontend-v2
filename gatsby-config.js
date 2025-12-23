@@ -1,10 +1,22 @@
+require("dotenv").config({
+    path: `.env`,
+});
+
 module.exports = {
     siteMetadata: {
-        siteUrl: "https://www.yourdomain.tld",
-        title: "zang-frontend-4",
+        siteUrl: "https://zang.gallery",
+        title: "zang - text-based NFTs",
+        description:
+            "Create and collect text-based NFTs. Poetry, prose, code, and HTML art on the blockchain.",
     },
     plugins: [
-        "gatsby-plugin-mdx",
+        "gatsby-plugin-postcss",
+        {
+            resolve: "gatsby-plugin-mdx",
+            options: {
+                extensions: [".mdx", ".md"],
+            },
+        },
         {
             resolve: "gatsby-source-filesystem",
             options: {
@@ -13,6 +25,5 @@ module.exports = {
             },
             __key: "pages",
         },
-        "gatsby-plugin-react-helmet",
     ],
 };

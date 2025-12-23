@@ -5,16 +5,6 @@ import ValidatedInput from "./ValidatedInput";
 import { schemas } from "../common";
 import { FixedNumber } from "ethers";
 
-const styles = {
-    modalCard: {
-        maxWidth: "80vw",
-    },
-    modalCardTitle: {
-        overflowWrap: "break-word",
-        maxWidth: "70vw",
-    },
-};
-
 const defaultValues = {
     amount: 1,
 };
@@ -27,8 +17,6 @@ export default function BuyModal({
     sellerBalance,
     price,
 }) {
-    //console.log('Seller balance: ', sellerBalance);
-
     const {
         register,
         formState: { isDirty, isValid, errors },
@@ -60,38 +48,51 @@ export default function BuyModal({
                 .mulUnsafe(FixedNumber.from(price))
                 .toString();
         } catch (e) {
-            console.log("Error: ", e);
             return undefined;
         }
     };
 
-    if (!isOpen) return <></>;
+    if (!isOpen) return null;
 
     return (
-        <div className="modal is-active">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div
-                className="modal-background"
-                onClick={() => closeModal(null, null)}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                onClick={() => closeModal(null)}
             />
-            <div className="modal-card" style={styles.modalCard}>
-                <header className="modal-card-head">
-                    <p
-                        className="modal-card-title"
-                        style={styles.modalCardTitle}
-                    >
+            <div className="relative bg-ink-900 border border-ink-700 rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                <div className="px-6 py-4 border-b border-ink-700">
+                    <h3 className="text-lg font-semibold text-white">
                         Buy NFT
-                    </p>
-                </header>
-                <section className="modal-card-body">
-                    <p>Listed quantity: {maxAmount}</p>
-                    {sellerBalance < maxAmount ? (
-                        <p>Seller's balance: {sellerBalance}</p>
-                    ) : (
-                        <></>
+                    </h3>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 rounded-lg bg-ink-800/50">
+                            <p className="text-xs text-ink-500 uppercase tracking-wide mb-1">
+                                Listed
+                            </p>
+                            <p className="text-white font-mono">{maxAmount}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-ink-800/50">
+                            <p className="text-xs text-ink-500 uppercase tracking-wide mb-1">
+                                Price Each
+                            </p>
+                            <p className="text-white font-mono">{price} ETH</p>
+                        </div>
+                    </div>
+
+                    {sellerBalance < maxAmount && (
+                        <div className="p-3 rounded-lg bg-amber-500/20 border border-amber-500/30">
+                            <p className="text-amber-400 text-sm">
+                                Seller only has {sellerBalance} available
+                            </p>
+                        </div>
                     )}
-                    <p>Price: {price}</p>
+
                     <ValidatedInput
-                        label="Amount"
+                        label="Amount to Buy"
                         name="amount"
                         type="number"
                         step="1"
@@ -99,39 +100,49 @@ export default function BuyModal({
                         errors={errors}
                         register={register}
                     />
-                    {total() && errors.amount === undefined ? (
-                        <p>
-                            Total: {total()}{" "}
-                            <object
-                                className="matic-6"
-                                type="image/svg+xml"
-                                data="https://zang.gallery/matic_logo.svg"
-                                aria-label="Matic"
-                            />
+
+                    <div className="p-4 rounded-lg bg-accent-cyan/10 border border-accent-cyan/20">
+                        <p className="text-xs text-ink-400 uppercase tracking-wide mb-1">
+                            Total
                         </p>
-                    ) : (
-                        <p>Total: </p>
-                    )}
-                    {validAmount() ? (
-                        <></>
-                    ) : (
-                        <p className="notification is-danger">
-                            <b>Error</b>:
-                            {watchAmount <= maxAmount
-                                ? ` Cannot buy more tokens than the seller's balance (${sellerBalance}).`
-                                : ` Cannot buy more tokens than the listed amount (${maxAmount}).`}
+                        <p className="text-2xl font-bold text-accent-cyan font-mono">
+                            {total() && errors.amount === undefined
+                                ? `${total()} ETH`
+                                : "—"}
                         </p>
+                    </div>
+
+                    {!validAmount() && (
+                        <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30">
+                            <p className="text-red-400 text-sm">
+                                <strong>Error:</strong>
+                                {watchAmount <= maxAmount
+                                    ? ` Cannot buy more than seller's balance (${sellerBalance}).`
+                                    : ` Cannot buy more than listed amount (${maxAmount}).`}
+                            </p>
+                        </div>
                     )}
-                </section>
-                <footer className="modal-card-foot">
+                </div>
+
+                <div className="px-6 py-4 border-t border-ink-700 flex justify-end gap-3">
                     <button
-                        className="button is-black"
-                        disabled={!isValid && isDirty && validAmount()}
+                        className="px-4 py-2 text-sm font-medium rounded-lg text-ink-300 hover:text-white hover:bg-ink-800 transition-colors"
+                        onClick={() => closeModal(null)}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            (!isValid && isDirty) || !validAmount()
+                                ? "bg-ink-700 text-ink-500 cursor-not-allowed"
+                                : "bg-accent-cyan text-ink-950 hover:bg-accent-cyan/90"
+                        }`}
+                        disabled={(!isValid && isDirty) || !validAmount()}
                         onClick={handleSubmit(closeModal)}
                     >
-                        Buy
+                        Buy Now
                     </button>
-                </footer>
+                </div>
             </div>
         </div>
     );

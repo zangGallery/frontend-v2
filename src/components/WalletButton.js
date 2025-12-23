@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { ethers } from "ethers";
 import Web3Modal from "web3modal";
 import WalletConnectProvider from "@walletconnect/web3-provider";
@@ -34,18 +34,14 @@ const chainIdState = atom({
     default: null,
 });
 
-const styles = {
-    ensInfoContainer: {
-        display: "flex",
-        alignItems: "space-between",
-        justifyContent: "center",
-    },
-    avatar: {
-        marginRight: "0.5em",
-    },
-    walletButton: {
-        borderColor: "white",
-    },
+const walletAddressState = atom({
+    key: "walletAddress",
+    default: null,
+});
+
+const truncateAddress = (address) => {
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
 export default function WalletButton() {
@@ -56,16 +52,17 @@ export default function WalletButton() {
     const [balance, setBalance] = useRecoilState(walletBalanceState);
     const [, setStandardError] = useRecoilState(standardErrorState);
     const [chainId, setChainId] = useRecoilState(chainIdState);
+    const [walletAddress, setWalletAddress] =
+        useRecoilState(walletAddressState);
 
     const providerOptions = {
-        /* See Provider Options Section */
         walletconnect: {
             package: WalletConnectProvider,
             options: {
                 rpc: {
-                    137: "https://polygon-rpc.com/",
+                    8453: "https://mainnet.base.org",
                 },
-                network: "matic",
+                network: "base",
             },
         },
         frame: {
@@ -80,7 +77,6 @@ export default function WalletButton() {
             providerOptions,
             disableInjectedProvider: false,
         });
-        // Force to prompt wallet selection
         web3Modal.clearCachedProvider();
 
         let wallet;
@@ -91,8 +87,6 @@ export default function WalletButton() {
             if (e?.message) {
                 setStandardError(formatError(e));
             } else {
-                // Some wallets reject the promise without actually throwing an error.
-                // In this situation we fail silently.
                 console.log(e);
             }
             return;
@@ -100,13 +94,10 @@ export default function WalletButton() {
 
         setStandardError(null);
 
-        // Remove any pre-existing event handlers
         delete wallet._events.accountsChanged;
         delete wallet._events.chainChanged;
         delete wallet._events.disconnect;
         delete wallet._events.network;
-
-        // The only remaining one is the default connect eventHandler
         wallet._eventsCount = 1;
 
         const handleDisconnect = () => {
@@ -117,12 +108,11 @@ export default function WalletButton() {
         const handleChange = async () => {
             if (wallet.selectedAddress) {
                 const regeneratedProvider = new ethers.providers.Web3Provider(
-                    wallet
+                    wallet,
                 );
                 setReadProvider(regeneratedProvider);
                 setWalletProvider(regeneratedProvider);
             } else {
-                // If the provider is connected but no addresses are selected, treat it as a disconnection
                 handleDisconnect();
             }
         };
@@ -131,11 +121,7 @@ export default function WalletButton() {
         wallet.on("accountsChanged", handleChange);
         wallet.on("chainChanged", handleChange);
 
-        // ethers.js recommends refreshing the page when a user changes network
         wallet.on("network", (newNetwork, oldNetwork) => {
-            // When a Provider makes its initial connection, it emits a "network"
-            // event with a null oldNetwork along with the newNetwork. So, if the
-            // oldNetwork exists, it represents a changing network
             if (oldNetwork) {
                 window.location.reload();
             }
@@ -148,82 +134,72 @@ export default function WalletButton() {
         setChainId(network?.chainId);
 
         try {
-            const walletAddress = await newProvider.getSigner().getAddress();
-            newProvider.getBalance(walletAddress).then((balance) => {
+            const address = await newProvider.getSigner().getAddress();
+            setWalletAddress(address);
+            newProvider.getBalance(address).then((balance) => {
                 const balanceFormatted = ethers.utils.formatEther(balance);
                 setBalance(balanceFormatted);
             });
-            const _ensAddress = await ensProvider.lookupAddress(walletAddress);
+            const _ensAddress = await ensProvider.lookupAddress(address);
             setEnsAddress(_ensAddress);
 
             const _ensAvatar = await ensProvider.getAvatar(_ensAddress);
             setEnsAvatar(_ensAvatar);
         } catch (e) {
-            // Fetching can fail without side effects
             console.log(e);
         }
     };
 
     return (
-        <div>
-            <div
-                className="is-flex is-align-items-center is-justify-content-center has-background-white-ter"
-                style={{ borderRadius: "4px", padding: "2px" }}
-            >
-                <div
-                    className="is-flex is-align-items-center has-text-black"
-                    style={{ height: "40px" }}
-                >
-                    <span>
-                        {balance && chainId === config.networks.main.chainId ? (
-                            <div className="p-2">
-                                {parseFloat(balance).toFixed(4)}{" "}
-                                <object
-                                    className="matic-6"
-                                    type="image/svg+xml"
-                                    data="https://zang.gallery/matic_logo.svg"
-                                    aria-label="Matic"
-                                />
-                            </div>
-                        ) : (
-                            ""
-                        )}
-                    </span>
-                </div>
-                <a
-                    className="button has-background-white has-text-black m-0"
-                    style={styles.walletButton}
+        <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center bg-ink-800/50 rounded-lg border border-ink-700/50 overflow-hidden">
+                {/* Balance Display */}
+                {balance && chainId === config.networks.main.chainId && (
+                    <div className="px-3 py-2 flex items-center gap-2 text-ink-300 text-sm border-r border-ink-700/50">
+                        <span className="font-mono">
+                            {parseFloat(balance).toFixed(4)} ETH
+                        </span>
+                    </div>
+                )}
+
+                {/* Connect Button */}
+                <button
                     onClick={connectWallet}
+                    className="px-4 py-2 flex items-center gap-2 text-sm font-medium text-ink-100 hover:bg-ink-700/50 transition-colors"
                 >
                     {walletProvider ? (
-                        <div style={styles.ensInfoContainer}>
-                            {ensAvatar ? (
-                                <div className="image" style={styles.avatar}>
-                                    <img
-                                        className="is-rounded is-1by1"
-                                        src={ensAvatar || ""}
-                                    />
-                                </div>
-                            ) : (
-                                <></>
+                        <>
+                            {ensAvatar && (
+                                <img
+                                    className="w-5 h-5 rounded-full object-cover"
+                                    src={ensAvatar}
+                                    alt=""
+                                />
                             )}
-                            <p>{ensAddress ? ensAddress : "Change Wallet"}</p>
-                        </div>
+                            <span className="font-mono text-xs">
+                                {ensAddress || truncateAddress(walletAddress)}
+                            </span>
+                        </>
                     ) : (
-                        "Connect Wallet"
+                        <>
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                />
+                            </svg>
+                            <span>Connect</span>
+                        </>
                     )}
-                </a>
+                </button>
             </div>
-            {balance ? (
-                <p className="is-size-7">
-                    Need more?{" "}
-                    <RoutingLink href="/bridge">
-                        <u>Bridge</u>
-                    </RoutingLink>
-                </p>
-            ) : (
-                <></>
-            )}
         </div>
     );
 }

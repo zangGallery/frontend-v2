@@ -1,200 +1,362 @@
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ethers } from "ethers";
 import { useReadProvider } from "../common/provider";
 import config from "../config";
 import { v1 } from "../common/abi";
 import { navigate } from "gatsby-link";
+import { formatEther, parseUnits } from "@ethersproject/units";
 import MDEditor from "@uiw/react-md-editor";
 import rehypeSanitize from "rehype-sanitize";
 import schemas from "../common/schemas";
-import { useEns } from "../common/ens";
-import TypeTag from "./TypeTag";
 import { isTokenExistenceError } from "../common/error";
-import { useRecoilState } from 'recoil';
-import { formatError, standardErrorState } from '../common/error';
 import HTMLViewer from "./HTMLViewer";
 import Address from "./Address";
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css';
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
-const styles = {
-    card: {
-        width: "52ch",
-        maxWidth: "90%",
-    },
-    description: {
-        display: "-webkit-box",
-        WebkitLineClamp: 3,
-        WebkitBoxOrient: "vertical",
-        overflow: "hidden",
-    },
-    cardPreview: {
-        height: "20ch",
-        overflow: "hidden",
-        padding: "3ch",
-        position: "relative",
-    },
-    cardShadow: {
-        boxShadow: "inset 0 -2em 2em -3em gray",
-        position: "absolute",
-        top: "0",
-        left: "0",
-        width: "100%",
-        height: "20ch",
-    },
-};
+// Type badge component
+function TypeBadge({ type }) {
+    if (!type) return null;
+
+    const config = {
+        "text/plain": {
+            label: "TXT",
+            bg: "bg-blue-500/10",
+            border: "border-blue-500/30",
+            text: "text-blue-400",
+            icon: "¶",
+        },
+        "text/markdown": {
+            label: "MD",
+            bg: "bg-purple-500/10",
+            border: "border-purple-500/30",
+            text: "text-purple-400",
+            icon: "#",
+        },
+        "text/html": {
+            label: "HTML",
+            bg: "bg-amber-500/10",
+            border: "border-amber-500/30",
+            text: "text-amber-400",
+            icon: "<>",
+        },
+    };
+
+    const typeConfig = config[type] || config["text/plain"];
+
+    return (
+        <span
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono ${typeConfig.bg} ${typeConfig.border} ${typeConfig.text} border`}
+        >
+            <span className="opacity-60">{typeConfig.icon}</span>
+            {typeConfig.label}
+        </span>
+    );
+}
 
 export default function NFTCard({ id }) {
-    const { lookupEns } = useEns();
-    const [tokenURI, setTokenURI] = useState(null);
     const [tokenData, setTokenData] = useState(null);
     const [tokenAuthor, setTokenAuthor] = useState(null);
-    const [readProvider, setReadProvider] = useReadProvider();
+    const [readProvider] = useReadProvider();
     const [tokenType, setTokenType] = useState(null);
     const [tokenContent, setTokenContent] = useState(null);
     const [exists, setExists] = useState(true);
-    const [_, setStandardError] = useRecoilState(standardErrorState);
 
-    const contractAddress = config.contractAddresses.v1.zang;
-    const contractABI = v1.zang;
+    // Stats
+    const [totalSupply, setTotalSupply] = useState(null);
+    const [floorPrice, setFloorPrice] = useState(null);
+    const [listedCount, setListedCount] = useState(null);
+    const [totalVolume, setTotalVolume] = useState(null);
 
-    const queryTokenURI = async () => {
-        if (!id || !readProvider) return;
-
-        const contract = new ethers.Contract(
-            contractAddress,
-            contractABI,
-            readProvider
+    // Memoize contract instances
+    const contract = useMemo(() => {
+        if (!readProvider) return null;
+        return new ethers.Contract(
+            config.contractAddresses.v1.zang,
+            v1.zang,
+            readProvider,
         );
+    }, [readProvider]);
 
-        try {
-            const tURI = await contract.uri(id);
-            setTokenURI(tURI);
-        } catch (e) {
-            if (isTokenExistenceError(e)) {
-                setExists(false);
-            } else {
-                setStandardError(formatError(e));
-            }
-        }
-    };
-
-    const queryTokenAuthor = async () => {
-        if (!id || !readProvider) return;
-
-        const contract = new ethers.Contract(
-            contractAddress,
-            contractABI,
-            readProvider
+    const marketplaceContract = useMemo(() => {
+        if (!readProvider) return null;
+        return new ethers.Contract(
+            config.contractAddresses.v1.marketplace,
+            v1.marketplace,
+            readProvider,
         );
+    }, [readProvider]);
 
-        try {
-            const author = await contract.authorOf(id);
+    // Fetch all data in parallel
+    useEffect(() => {
+        if (!id || !contract || !marketplaceContract) return;
 
-            setTokenAuthor(author);
-        } catch (e) {
-            if (isTokenExistenceError(e)) {
-                setExists(false);
-            } else {
-                setStandardError(formatError(e));
+        const fetchAllData = async () => {
+            try {
+                // Fetch URI, author, and supply in parallel
+                const [tokenURI, author, supply] = await Promise.all([
+                    contract.uri(id),
+                    contract.authorOf(id),
+                    contract.totalSupply(id),
+                ]);
+
+                setTokenAuthor(author);
+                setTotalSupply(supply.toNumber());
+
+                // Fetch metadata
+                const tokenDataResponse = await fetch(tokenURI);
+                const newTokenData = await tokenDataResponse.json();
+                setTokenData(newTokenData);
+
+                // Fetch content if text_uri exists
+                if (newTokenData?.text_uri) {
+                    let parsedTextURI = newTokenData.text_uri.replaceAll(
+                        "#",
+                        "%23",
+                    );
+                    parsedTextURI = parsedTextURI.replace("charset=UTF-8,", "");
+
+                    const response = await fetch(parsedTextURI);
+                    const parsedText = await response.text();
+                    setTokenType(response.headers.get("content-type"));
+                    setTokenContent(parsedText);
+                }
+
+                // Fetch marketplace listings
+                const listingCount = await marketplaceContract.listingCount(id);
+                const count = listingCount.toNumber();
+
+                if (count > 0) {
+                    const listingPromises = [];
+                    for (let i = 0; i < count; i++) {
+                        listingPromises.push(
+                            marketplaceContract.listings(id, i),
+                        );
+                    }
+                    const listings = await Promise.all(listingPromises);
+
+                    // Filter active listings (seller != 0x0)
+                    const activeListings = listings.filter(
+                        (l) => l.seller !== ethers.constants.AddressZero,
+                    );
+
+                    setListedCount(
+                        activeListings.reduce(
+                            (sum, l) => sum + l.amount.toNumber(),
+                            0,
+                        ),
+                    );
+
+                    if (activeListings.length > 0) {
+                        const prices = activeListings.map((l) =>
+                            parseFloat(
+                                formatEther(
+                                    parseUnits(l.price.toString(), "wei"),
+                                ),
+                            ),
+                        );
+                        setFloorPrice(Math.min(...prices));
+                    }
+                } else {
+                    setListedCount(0);
+                }
+
+                // Fetch total volume from purchase events
+                const purchaseFilter =
+                    marketplaceContract.filters.TokenPurchased(id);
+                const purchaseEvents = await marketplaceContract.queryFilter(
+                    purchaseFilter,
+                    config.firstBlocks.v1.base.marketplace,
+                );
+
+                if (purchaseEvents.length > 0) {
+                    const volume = purchaseEvents.reduce((sum, event) => {
+                        const price = parseFloat(
+                            formatEther(event.args._price.toString()),
+                        );
+                        const amount = event.args._amount.toNumber();
+                        return sum + price * amount;
+                    }, 0);
+                    setTotalVolume(volume);
+                } else {
+                    setTotalVolume(0);
+                }
+            } catch (e) {
+                if (isTokenExistenceError(e)) {
+                    setExists(false);
+                } else {
+                    console.error(`Error loading NFT ${id}:`, e);
+                }
             }
-        }
-    };
+        };
 
-    const queryTokenData = async () => {
-        if (!tokenURI) return;
-
-        try {
-            const tokenDataResponse = await fetch(tokenURI);
-            const newTokenData = await tokenDataResponse.json();
-            //console.log(newTokenData)
-            setTokenData(newTokenData);
-        } catch (e) {
-            setStandardError(formatError(e));
-        }
-    };
-
-    const queryTokenContent = async () => {
-        if (!tokenData?.text_uri) return;
-        var parsedTextURI = tokenData.text_uri.replaceAll("#", "%23"); //TODO: workaround, togliere con nuovo deploy
-        parsedTextURI = parsedTextURI.replace("charset=UTF-8,", "");
-
-        try {
-            const response = await fetch(parsedTextURI);
-            const parsedText = await response.text();
-            //console.log("content: " + parsedTextURI)
-            setTokenType(response.headers.get("content-type"));
-            setTokenContent(parsedText);
-        } catch (e) {
-            setStandardError(formatError(e));
-        }
-    };
-
-    useEffect(() => queryTokenURI(), [id, readProvider]);
-    useEffect(() => queryTokenData(), [tokenURI]);
-    useEffect(() => queryTokenAuthor(), [id, readProvider]);
-    useEffect(() => queryTokenContent(), [tokenData]);
-    useEffect(() => setExists(true), [id, readProvider]);
-
-    const effectiveTokenAuthor = tokenAuthor || null;
+        fetchAllData();
+    }, [id, contract, marketplaceContract]);
 
     if (!exists) {
-        return <></>;
+        return null;
     }
+
+    const handleClick = () => navigate("/nft?id=" + id);
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleClick();
+        }
+    };
 
     return (
         <div
-            className="card m-3 cursor-pointer"
-            style={styles.card}
-            onClick={() => navigate("/nft?id=" + id)}
+            className="group relative cursor-pointer"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
         >
-            <div style={styles.cardPreview}>
-                {tokenType && (tokenContent !== null) ? (
-                    tokenType == 'text/html' ? (
-                        <HTMLViewer source={tokenContent} />
-                    ) : (
-                        tokenType == 'text/markdown' ? (
-                            <MDEditor.Markdown source={tokenContent} rehypePlugins={[() => rehypeSanitize(schemas.validMarkdown)]} />
-                        ) : <pre className="nft-plain" style={{overflow: 'hidden'}}>{tokenContent}</pre>
-                    )
-                ) : <Skeleton count={10}/>}
-            </div>
-            <div style={styles.cardShadow}></div>
-            <div className="card-content">
-                <div className="media">
-                    <div className="media-content">
-                        <p className="title is-4 mb-0">
-                            {tokenData?.name || <Skeleton />}
-                        </p>
-                        <span className="subtitle is-6">
-                            {effectiveTokenAuthor !== null ? (
-                                <span>
-                                    by{" "}
-                                    <Address
-                                        address={effectiveTokenAuthor}
-                                        shorten
-                                        nChar={8}
-                                        disableLink
+            {/* Card container */}
+            <div className="relative bg-ink-900/40 border border-ink-800 rounded-xl overflow-hidden transition-all duration-300 hover:border-ink-600 hover:bg-ink-900/60 hover:-translate-y-1 hover:shadow-xl hover:shadow-ink-950/50">
+                {/* Top bar with ID and type */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-ink-800/50 bg-ink-900/30">
+                    <span className="text-ink-600 text-xs font-mono">
+                        #{id}
+                    </span>
+                    <TypeBadge type={tokenType} />
+                </div>
+
+                {/* Preview Area */}
+                <div className="relative h-44 overflow-hidden">
+                    <div className="absolute inset-0 p-4 overflow-hidden">
+                        {tokenType && tokenContent !== null ? (
+                            tokenType === "text/html" ? (
+                                <div className="absolute inset-0 [&>iframe]:!h-full [&>iframe]:!min-h-full">
+                                    <HTMLViewer source={tokenContent} />
+                                </div>
+                            ) : tokenType === "text/markdown" ? (
+                                <div
+                                    className="prose prose-invert prose-sm max-w-none text-ink-300"
+                                    data-color-mode="dark"
+                                >
+                                    <MDEditor.Markdown
+                                        source={tokenContent}
+                                        rehypePlugins={[
+                                            () =>
+                                                rehypeSanitize(
+                                                    schemas.validMarkdown,
+                                                ),
+                                        ]}
                                     />
-                                </span>
+                                </div>
                             ) : (
-                                <Skeleton />
-                            )}
+                                <pre className="font-mono text-sm text-ink-300 leading-relaxed whitespace-pre overflow-x-auto">
+                                    {tokenContent}
+                                </pre>
+                            )
+                        ) : (
+                            <div className="space-y-2">
+                                <Skeleton
+                                    count={5}
+                                    baseColor="#1c1c1e"
+                                    highlightColor="#2a2a2e"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Gradient fade at bottom */}
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-ink-900 via-ink-900/80 to-transparent pointer-events-none" />
+
+                    {/* Hover reveal indicator */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-ink-950/40">
+                        <span className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg text-white text-sm font-medium border border-white/20">
+                            Read more →
                         </span>
                     </div>
                 </div>
 
-                <div className="content is-italic" style={styles.description}>
-                    {tokenData?.description !== undefined &&
-                    tokenData?.description !== null ? (
-                        tokenData.description
-                    ) : (
-                        <Skeleton />
-                    )}
-                </div>
-                <div className="has-text-right">
-                    <TypeTag type={tokenData?.text_uri} isUri={true} />
+                {/* Content Area */}
+                <div className="p-4 bg-gradient-to-b from-ink-900 to-ink-900/80">
+                    {/* Title */}
+                    <h3 className="text-ink-100 font-medium text-base leading-tight line-clamp-1 group-hover:text-white transition-colors">
+                        {tokenData?.name || (
+                            <Skeleton
+                                baseColor="#1c1c1e"
+                                highlightColor="#2a2a2e"
+                                width="70%"
+                            />
+                        )}
+                    </h3>
+
+                    {/* Description - fixed height to keep cards consistent */}
+                    <p className="text-ink-500 text-xs line-clamp-2 leading-relaxed mt-1.5 min-h-[2.5rem]">
+                        {tokenData?.description || ""}
+                    </p>
+
+                    {/* Stats row */}
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-ink-800/50 text-xs overflow-hidden">
+                        {totalSupply !== null ? (
+                            <span className="text-ink-400 whitespace-nowrap">
+                                {totalSupply} ed.
+                            </span>
+                        ) : (
+                            <Skeleton
+                                width={30}
+                                baseColor="#1c1c1e"
+                                highlightColor="#2a2a2e"
+                            />
+                        )}
+
+                        {listedCount !== null && listedCount > 0 && (
+                            <>
+                                <span className="text-ink-700">·</span>
+                                <span className="text-ink-400 whitespace-nowrap">
+                                    {listedCount} listed
+                                </span>
+                            </>
+                        )}
+
+                        {floorPrice !== null && (
+                            <>
+                                <span className="text-ink-700">·</span>
+                                <span className="text-green-400 whitespace-nowrap font-mono">
+                                    {floorPrice} Ξ
+                                </span>
+                            </>
+                        )}
+
+                        {totalVolume !== null && totalVolume > 0 && (
+                            <>
+                                <span className="text-ink-700">·</span>
+                                <span className="text-ink-400 whitespace-nowrap font-mono">
+                                    {totalVolume.toFixed(
+                                        totalVolume < 0.01 ? 4 : 3,
+                                    )}{" "}
+                                    Ξ vol
+                                </span>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Author */}
+                    <div className="flex items-center gap-2 text-xs mt-2">
+                        <span className="text-ink-500">by</span>
+                        {tokenAuthor ? (
+                            <span className="text-ink-400 font-mono">
+                                <Address
+                                    address={tokenAuthor}
+                                    shorten
+                                    nChar={6}
+                                    disableLink
+                                />
+                            </span>
+                        ) : (
+                            <Skeleton
+                                width={80}
+                                baseColor="#1c1c1e"
+                                highlightColor="#2a2a2e"
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

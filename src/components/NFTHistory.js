@@ -1,15 +1,8 @@
-import React, { useState } from "react";
-import { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useReadProvider } from "../common/provider";
 import config from "../config";
-import {
-    blockToDateState,
-    computeBalances,
-    getBlockTime,
-    getEvents,
-} from "../common/history";
+import { blockToDateState, getBlockTime } from "../common/history";
 import Skeleton from "react-loading-skeleton";
-import { shortenAddress } from "../common/utils";
 import { useRecoilState } from "recoil";
 
 import TimeAgo from "javascript-time-ago";
@@ -21,12 +14,12 @@ TimeAgo.addDefaultLocale(en);
 
 const timeAgo = new TimeAgo("en-US");
 
-export default function NFTHistory({ history, hideId }) {
+export default function NFTHistory({ history, hideId, newestFirst = false }) {
     const [readProvider] = useReadProvider();
     const [blockToDate, setBlockToDate] = useRecoilState(blockToDateState);
 
     useEffect(() => {
-        if (!history) {
+        if (!history || !readProvider) {
             return;
         }
 
@@ -40,146 +33,178 @@ export default function NFTHistory({ history, hideId }) {
                 });
             }
         }
-    }, [history]);
+    }, [history, readProvider, blockToDate, setBlockToDate]);
 
-    console.log(history);
+    const getEventColor = (type) => {
+        switch (type) {
+            case "mint":
+                return "bg-green-500";
+            case "transfer":
+                return "bg-blue-500";
+            case "list":
+                return "bg-amber-500";
+            case "delist":
+                return "bg-ink-500";
+            case "buy":
+                return "bg-purple-500";
+            default:
+                return "bg-ink-500";
+        }
+    };
+
+    const displayHistory = useMemo(
+        () => (newestFirst ? history : [...(history || [])].reverse()),
+        [history, newestFirst],
+    );
 
     return history ? (
-        <div>
-            {[...history].reverse().map((event, index) => {
+        <div className="space-y-4">
+            {displayHistory.map((event, index) => {
                 return (
-                    <div className="mb-4">
-                        {hideId ? (
-                            <></>
-                        ) : (
-                            <b>
-                                {event.id ? (
-                                    <tt className="is-size-5">
+                    <div
+                        key={index}
+                        className="relative pl-6 pb-4 border-l-2 border-ink-700 last:border-l-transparent"
+                    >
+                        {/* Timeline dot */}
+                        <div
+                            className={`absolute -left-[5px] top-1 w-2 h-2 rounded-full ${getEventColor(event.type)}`}
+                        />
+
+                        {/* Event card */}
+                        <div className="bg-ink-800/50 rounded-lg p-4">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                    {!hideId && event.id && (
                                         <a
                                             href={"/nft/?id=" + event.id}
-                                            style={{
-                                                textDecoration: "underline",
-                                            }}
+                                            className="text-accent-cyan hover:underline font-mono text-sm"
                                         >
-                                            NFT #{event.id}
+                                            #{event.id}
                                         </a>
-                                    </tt>
+                                    )}
+                                    <span className="px-2 py-0.5 bg-ink-700 rounded text-xs font-mono uppercase text-ink-200">
+                                        {event.type}
+                                    </span>
+                                </div>
+                                {blockToDate[event.blockNumber] ? (
+                                    <span className="text-xs text-ink-400 font-mono">
+                                        {timeAgo.format(
+                                            blockToDate[event.blockNumber],
+                                        )}
+                                    </span>
                                 ) : (
-                                    <></>
+                                    <Skeleton
+                                        width={80}
+                                        baseColor="#27272a"
+                                        highlightColor="#3f3f46"
+                                    />
                                 )}
-                            </b>
-                        )}
-                        <div
-                            key={index}
-                            className="is-flex is-justify-content-space-between is-align-items-center"
-                        >
-                            <b className="is-size-6">
-                                <tt>{event.type.toUpperCase()}</tt>
-                            </b>
-                            {blockToDate[event.blockNumber] ? (
-                                <tt className="is-size-7 mr-2 mt-1">
-                                    {timeAgo
-                                        .format(blockToDate[event.blockNumber])
-                                        .toUpperCase()}
-                                </tt>
-                            ) : (
-                                <Skeleton width={100} />
-                            )}
+                            </div>
+
+                            {/* Details */}
+                            <div className="space-y-1 text-sm font-mono">
+                                {event.from && (
+                                    <div className="flex gap-2">
+                                        <span className="text-ink-500 w-16">
+                                            FROM
+                                        </span>
+                                        <Address
+                                            address={event.from}
+                                            shorten
+                                            nChar={8}
+                                        />
+                                    </div>
+                                )}
+                                {event.to && (
+                                    <div className="flex gap-2">
+                                        <span className="text-ink-500 w-16">
+                                            TO
+                                        </span>
+                                        <Address
+                                            address={event.to}
+                                            shorten
+                                            nChar={8}
+                                        />
+                                    </div>
+                                )}
+                                {event.seller && (
+                                    <div className="flex gap-2">
+                                        <span className="text-ink-500 w-16">
+                                            SELLER
+                                        </span>
+                                        <Address
+                                            address={event.seller}
+                                            shorten
+                                            nChar={8}
+                                        />
+                                    </div>
+                                )}
+                                {event.buyer && (
+                                    <div className="flex gap-2">
+                                        <span className="text-ink-500 w-16">
+                                            BUYER
+                                        </span>
+                                        <Address
+                                            address={event.buyer}
+                                            shorten
+                                            nChar={8}
+                                        />
+                                    </div>
+                                )}
+                                {event.price && (
+                                    <div className="flex gap-2">
+                                        <span className="text-ink-500 w-16">
+                                            PRICE
+                                        </span>
+                                        <span className="text-white">
+                                            {event.price} ETH
+                                        </span>
+                                    </div>
+                                )}
+                                {event.amount && (
+                                    <div className="flex gap-2">
+                                        <span className="text-ink-500 w-16">
+                                            AMOUNT
+                                        </span>
+                                        <span className="text-ink-300">
+                                            {event.amount}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Transaction link */}
+                            <div className="mt-3 pt-3 border-t border-ink-700">
+                                <a
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-ink-400 hover:text-accent-cyan transition-colors font-mono"
+                                    href={
+                                        config.blockExplorer.url +
+                                        "/tx/" +
+                                        event.transactionHash
+                                    }
+                                >
+                                    View transaction →
+                                </a>
+                            </div>
                         </div>
-                        <p>
-                            {event.from ? (
-                                <tt className="is-size-7">
-                                    FROM:{" "}
-                                    <Address
-                                        address={event.from}
-                                        shorten
-                                        nChar={8}
-                                    />
-                                </tt>
-                            ) : (
-                                <></>
-                            )}
-                        </p>
-                        <p>
-                            {event.to ? (
-                                <tt className="is-size-7">
-                                    TO: &nbsp;&nbsp;
-                                    <Address
-                                        address={event.to}
-                                        shorten
-                                        nChar={8}
-                                    />
-                                </tt>
-                            ) : (
-                                <></>
-                            )}
-                        </p>
-                        <p>
-                            {event.seller ? (
-                                <tt className="is-size-7">
-                                    SELLER:{" "}
-                                    <Address
-                                        address={event.seller}
-                                        shorten
-                                        nChar={8}
-                                    />
-                                </tt>
-                            ) : (
-                                <></>
-                            )}
-                        </p>
-                        <p>
-                            {event.buyer ? (
-                                <tt className="is-size-7">
-                                    BUYER: &nbsp;
-                                    <Address
-                                        address={event.buyer}
-                                        shorten
-                                        nChar={8}
-                                    />
-                                </tt>
-                            ) : (
-                                <></>
-                            )}
-                        </p>
-                        <p>
-                            {event.price ? (
-                                <tt className="is-size-7">
-                                    PRICE: &nbsp;{event.price} MATIC
-                                </tt>
-                            ) : (
-                                <></>
-                            )}
-                        </p>
-                        <p>
-                            {event.amount ? (
-                                <tt className="is-size-7">
-                                    AMOUNT: {event.amount}
-                                </tt>
-                            ) : (
-                                <></>
-                            )}
-                        </p>
-                        <p className="is-size-7">
-                            <a
-                                target="_blank"
-                                rel="noopener"
-                                style={{ textDecoration: "underline" }}
-                                href={
-                                    config.blockExplorer.url +
-                                    "/tx/" +
-                                    event.transactionHash
-                                }
-                            >
-                                <tt>[tx]</tt>
-                            </a>
-                        </p>
-                        <hr />
                     </div>
                 );
             })}
         </div>
     ) : (
-        <Skeleton />
+        <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+                <Skeleton
+                    key={i}
+                    height={120}
+                    className="rounded-lg"
+                    baseColor="#27272a"
+                    highlightColor="#3f3f46"
+                />
+            ))}
+        </div>
     );
 }

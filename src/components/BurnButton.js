@@ -3,6 +3,7 @@ import { useRecoilState } from "recoil";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
 import config from "../config";
+import getGasSettings from "../common/gas";
 
 import { useWalletProvider } from "../common/provider";
 
@@ -46,14 +47,19 @@ export default function BurnButton({
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            walletProvider
+            walletProvider,
         );
         const contractWithSigner = contract.connect(walletProvider.getSigner());
         const transactionFunction = async () =>
-            await contractWithSigner.burn(walletAddress, id, amount);
+            await contractWithSigner.burn(
+                walletAddress,
+                id,
+                amount,
+                getGasSettings(),
+            );
         const { success } = await handleTransaction(
             transactionFunction,
-            `Burn NFT #${id}`
+            `Burn NFT #${id}`,
         );
         if (success && onUpdate) {
             onUpdate(id);
@@ -61,9 +67,9 @@ export default function BurnButton({
     };
 
     return (
-        <div>
+        <>
             <button
-                className="button is-black is-small"
+                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
                 onClick={() => setBurnModalOpen(true)}
             >
                 Burn
@@ -75,6 +81,6 @@ export default function BurnButton({
                 balance={balance}
                 availableAmount={availableAmount}
             />
-        </div>
+        </>
     );
 }

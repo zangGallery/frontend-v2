@@ -13,22 +13,23 @@ import rehypeSanitize from "rehype-sanitize";
 import schemas from "../common/schemas";
 import * as queryString from "query-string";
 
-import MDEditor from "@uiw/react-md-editor"
+import MDEditor from "@uiw/react-md-editor";
 import HTMLViewer from "../components/HTMLViewer";
-import { navigate } from 'gatsby-link';
-import { Helmet } from 'react-helmet';
-import { Header } from '../components';
+import { navigate } from "gatsby-link";
+import { Header } from "../components";
 
 import { formatEther, parseUnits } from "@ethersproject/units";
 
-import "bulma/css/bulma.min.css";
+import "../styles/tailwind.css";
 import "../styles/globals.css";
 import Listings from "../components/Listings";
 import TransferButton from "../components/TransferButton";
 import { useEns } from "../common/ens";
 import TypeTag from "../components/TypeTag";
-import BurnButton from "../components/BurnButton";
 import EditRoyaltyButton from "../components/EditRoyaltyButton";
+import ListButton from "../components/ListButton";
+import EditButton from "../components/EditButton";
+import DelistButton from "../components/DelistButton";
 import Decimal from "decimal.js";
 import {
     formatError,
@@ -52,19 +53,6 @@ const burnedIdsState = atom({
     key: "burnedIds",
     default: [],
 });
-
-const styles = {
-    arrowContainer: {
-        display: "flex",
-        justifyContent: "flex-end",
-        marginTop: "1em",
-        height: "2em",
-    },
-    arrow: {
-        fontSize: "2em",
-        marginRight: "0.75em",
-    },
-};
 
 export default function NFTPage({ location }) {
     const zangAddress = config.contractAddresses.v1.zang;
@@ -99,11 +87,13 @@ export default function NFTPage({ location }) {
 
     const [walletAddress, setWalletAddress] = useState(null);
 
-    // Owners tab or History tab
-    const [isOwners, setIsOwners] = useState(true);
-    const setOwners = () => setIsOwners(true);
-    const setHistory = () => setIsOwners(false);
     const [events, setEvents] = useState(null);
+
+    // View source toggle for markdown/html
+    const [showSource, setShowSource] = useState(false);
+
+    // ETH price in USD
+    const [ethPrice, setEthPrice] = useState(null);
 
     const [, setStandardError] = useRecoilState(standardErrorState);
 
@@ -114,15 +104,15 @@ export default function NFTPage({ location }) {
         const zangContract = new ethers.Contract(
             zangAddress,
             zangABI,
-            defaultReadProvider
+            defaultReadProvider,
         );
         const marketplaceContract = new ethers.Contract(
             marketplaceAddress,
             marketplaceABI,
-            defaultReadProvider
+            defaultReadProvider,
         );
-        const firstZangBlock = config.firstBlocks.v1.polygon.zang;
-        const firstMarketplaceBlock = config.firstBlocks.v1.polygon.marketplace;
+        const firstZangBlock = config.firstBlocks.v1.base.zang;
+        const firstMarketplaceBlock = config.firstBlocks.v1.base.marketplace;
 
         const events = await getEvents(
             id,
@@ -130,7 +120,7 @@ export default function NFTPage({ location }) {
             marketplaceContract,
             author,
             firstZangBlock,
-            firstMarketplaceBlock
+            firstMarketplaceBlock,
         );
         console.log("Find events", events, id, author);
         setEvents(events);
@@ -144,7 +134,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
 
         let prevId = id - 1;
@@ -180,7 +170,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
 
         try {
@@ -198,7 +188,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
 
         let nextId = id + 1;
@@ -247,7 +237,7 @@ export default function NFTPage({ location }) {
             const contract = new ethers.Contract(
                 zangAddress,
                 zangABI,
-                readProvider
+                readProvider,
             );
             const tURI = await contract.uri(id);
             return tURI;
@@ -266,7 +256,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
         try {
             const author = await contract.authorOf(id);
@@ -314,7 +304,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
 
         try {
@@ -335,7 +325,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
 
         try {
@@ -359,54 +349,82 @@ export default function NFTPage({ location }) {
         }
     }, [id]);
 
-    useEffect(async () => {
-        if (walletProvider) {
-            try {
-                setWalletAddress(await walletProvider.getSigner().getAddress());
-            } catch (e) {
-                setStandardError(formatError(e));
+    useEffect(() => {
+        const fetchWalletAddress = async () => {
+            if (walletProvider) {
+                try {
+                    setWalletAddress(
+                        await walletProvider.getSigner().getAddress(),
+                    );
+                } catch (e) {
+                    setStandardError(formatError(e));
+                }
             }
-        }
+        };
+        fetchWalletAddress();
     }, [walletProvider]);
 
     useEffect(() => {
         setStandardError(null);
     }, [id]);
 
-    useEffect(async () => {
-        setExists(true);
-        setTokenData(null);
-        setTokenContent(null);
-        setTokenType(null);
-        setTokenAuthor(null);
-        setRoyaltyInfo(null);
-        setTotalSupply(null);
-        setPrevValidId(null);
-        setNextValidId(null);
-        setListings(null);
-        setListingSellerBalances({});
-        setEvents(null);
+    useEffect(() => {
+        const loadNftData = async () => {
+            setExists(true);
+            setTokenData(null);
+            setTokenContent(null);
+            setTokenType(null);
+            setTokenAuthor(null);
+            setRoyaltyInfo(null);
+            setTotalSupply(null);
+            setPrevValidId(null);
+            setNextValidId(null);
+            setListings(null);
+            setListingSellerBalances({});
+            setEvents(null);
+            setShowSource(false);
 
-        queryTokenURI()
-            .then((tURI) => queryTokenData(tURI))
-            .then((newTokenData) => queryTokenContent(newTokenData));
-        queryTokenAuthor().then((author) => queryBalances(author));
-        queryRoyaltyInfo();
-        queryTotalSupply();
+            queryTokenURI()
+                .then((tURI) => queryTokenData(tURI))
+                .then((newTokenData) => queryTokenContent(newTokenData));
+            queryTokenAuthor().then((author) => queryBalances(author));
+            queryRoyaltyInfo();
+            queryTotalSupply();
+            queryListings();
 
-        const [prevId, nextId] = await Promise.all([
-            queryPrevValidId(),
-            queryNextValidId(),
-        ]);
-        setPrevValidId(prevId);
-        setNextValidId(nextId);
+            const [prevId, nextId] = await Promise.all([
+                queryPrevValidId(),
+                queryNextValidId(),
+            ]);
+            setPrevValidId(prevId);
+            setNextValidId(nextId);
+        };
+        loadNftData();
     }, [id, readProvider]);
 
     /*useEffect(() => queryTokenAuthor(), [id, readProvider])
     useEffect(() => queryRoyaltyInfo(), [id, readProvider])
     useEffect(() => queryTotalSupply(), [id, readProvider])
     useEffect(() => setExists(true), [id, readProvider])*/
-    useEffect(queryLastNFTId, []);
+    useEffect(() => {
+        queryLastNFTId();
+    }, []);
+
+    // Fetch ETH price in USD
+    useEffect(() => {
+        const fetchEthPrice = async () => {
+            try {
+                const response = await fetch(
+                    "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+                );
+                const data = await response.json();
+                setEthPrice(data.ethereum.usd);
+            } catch (e) {
+                console.error("Failed to fetch ETH price:", e);
+            }
+        };
+        fetchEthPrice();
+    }, []);
 
     // === Listing info ===
 
@@ -493,7 +511,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             marketplaceAddress,
             marketplaceABI,
-            readProvider
+            readProvider,
         );
 
         try {
@@ -510,13 +528,13 @@ export default function NFTPage({ location }) {
                             newListings.push({
                                 amount: listing.amount.toNumber(),
                                 price: formatEther(
-                                    parseUnits(listing.price.toString(), "wei")
+                                    parseUnits(listing.price.toString(), "wei"),
                                 ),
                                 seller: listing.seller,
                                 id: i,
-                            })
+                            }),
                         )
-                        .catch((e) => console.log(e))
+                        .catch((e) => console.log(e)),
                 );
             }
 
@@ -537,7 +555,7 @@ export default function NFTPage({ location }) {
         const contract = new ethers.Contract(
             zangAddress,
             zangABI,
-            readProvider
+            readProvider,
         );
 
         try {
@@ -585,272 +603,552 @@ export default function NFTPage({ location }) {
         }
     }, [updateTracker]);
 
+    // Query user balance when wallet connects or id changes
+    useEffect(() => {
+        if (walletAddress && id && walletProvider) {
+            queryUserBalance();
+        }
+    }, [walletAddress, id, walletProvider]);
+
     const onUpdate = (updatedNFTId) => {
         setUpdateTracker(([_, counter]) => [updatedNFTId, counter + 1]);
     };
 
     return (
-        <div>
-            <Helmet>
-                <title>
-                    {id !== undefined && id !== null ? `#${id} - zang` : "zang"}
-                </title>
-            </Helmet>
+        <div className="min-h-screen bg-ink-950">
             <Header />
-            <div style={styles.arrowContainer}>
-                {prevValidId ? (
-                    <a
-                        style={styles.arrow}
-                        className="icon"
-                        role="button"
-                        onClick={changeId(false)}
-                    >
-                        {"\u25c0"}
-                    </a>
-                ) : (
-                    <></>
-                )}
-                {nextValidId ? (
-                    <a
-                        style={styles.arrow}
-                        className="icon"
-                        role="button"
-                        onClick={changeId(true)}
-                    >
-                        {"\u25b6"}
-                    </a>
-                ) : (
-                    <></>
-                )}
-            </div>
+            <StandardErrorDisplay />
 
-                <StandardErrorDisplay />
-                {
-                    exists ?
-                        (
-                            <div>
-                                <div className="columns m-4">
-                                    <div className="column is-two-thirds" style={{overflow: 'hidden'}}>
-                                        { readProvider ? 
-                                            (
-                                                <div>
-                                                    <div className="box">
-                                                        {tokenType && (tokenContent || tokenContent == '') ? (
-                                                            tokenType == 'text/html' ? (
-                                                                <HTMLViewer source={tokenContent} />
-                                                            ) : (
-                                                                tokenType == 'text/markdown' ? (
-                                                                    <MDEditor.Markdown source={tokenContent} rehypePlugins={[() => rehypeSanitize(schemas.validMarkdown)]} />
-                                                                ) : <pre className="nft-plain">{tokenContent}</pre>
-                                                            )
+            {exists ? (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {/* Navigation Arrows */}
+                    <div className="flex justify-between items-center mb-6">
+                        <button
+                            onClick={changeId(false)}
+                            disabled={!prevValidId}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                                prevValidId
+                                    ? "text-ink-300 hover:text-white hover:bg-ink-800"
+                                    : "text-ink-700 cursor-not-allowed"
+                            }`}
+                        >
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 19l-7-7 7-7"
+                                />
+                            </svg>
+                            <span className="hidden sm:inline">Previous</span>
+                        </button>
+
+                        <span className="text-ink-500 font-mono text-sm">
+                            #{id}
+                        </span>
+
+                        <button
+                            onClick={changeId(true)}
+                            disabled={!nextValidId}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                                nextValidId
+                                    ? "text-ink-300 hover:text-white hover:bg-ink-800"
+                                    : "text-ink-700 cursor-not-allowed"
+                            }`}
+                        >
+                            <span className="hidden sm:inline">Next</span>
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Content Area - 2/3 width on large screens */}
+                        <div className="lg:col-span-2">
+                            {readProvider ? (
+                                <div className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
+                                    {/* View Source Toggle - only for markdown and html */}
+                                    {tokenType &&
+                                        (tokenType === "text/markdown" ||
+                                            tokenType === "text/html") && (
+                                            <div className="flex justify-end px-4 pt-4">
+                                                <button
+                                                    onClick={() =>
+                                                        setShowSource(
+                                                            !showSource,
+                                                        )
+                                                    }
+                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                                        showSource
+                                                            ? "bg-ink-700 text-white"
+                                                            : "bg-ink-800/50 text-ink-400 hover:text-ink-200 hover:bg-ink-800"
+                                                    }`}
+                                                >
+                                                    {showSource ? (
+                                                        <>
+                                                            <svg
+                                                                className="w-4 h-4"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth={
+                                                                        2
+                                                                    }
+                                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                                />
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth={
+                                                                        2
+                                                                    }
+                                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                                />
+                                                            </svg>
+                                                            View Rendered
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg
+                                                                className="w-4 h-4"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth={
+                                                                        2
+                                                                    }
+                                                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                                                                />
+                                                            </svg>
+                                                            View Source
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
+                                    <div className="p-6 min-h-[300px]">
+                                        {tokenType &&
+                                        (tokenContent ||
+                                            tokenContent === "") ? (
+                                            showSource &&
+                                            typeof window !== "undefined" ? (
+                                                (() => {
+                                                    const AceEditor =
+                                                        require("react-ace").default;
+                                                    require("ace-builds/src-noconflict/mode-html");
+                                                    require("ace-builds/src-noconflict/mode-markdown");
+                                                    require("ace-builds/src-noconflict/theme-monokai");
+                                                    return (
+                                                        <AceEditor
+                                                            mode={
+                                                                tokenType ===
+                                                                "text/html"
+                                                                    ? "html"
+                                                                    : "markdown"
+                                                            }
+                                                            theme="monokai"
+                                                            value={tokenContent}
+                                                            name="source-viewer"
+                                                            readOnly={true}
+                                                            editorProps={{
+                                                                $blockScrolling: false,
+                                                            }}
+                                                            setOptions={{
+                                                                showPrintMargin: false,
+                                                                showGutter: true,
+                                                                highlightActiveLine: false,
+                                                                highlightGutterLine: false,
+                                                            }}
+                                                            width="100%"
+                                                            height="400px"
+                                                            fontSize={14}
+                                                        />
+                                                    );
+                                                })()
+                                            ) : tokenType === "text/html" ? (
+                                                <HTMLViewer
+                                                    source={tokenContent}
+                                                />
+                                            ) : tokenType ===
+                                              "text/markdown" ? (
+                                                <div
+                                                    className="prose prose-invert prose-ink max-w-none"
+                                                    data-color-mode="dark"
+                                                >
+                                                    <MDEditor.Markdown
+                                                        source={tokenContent}
+                                                        rehypePlugins={[
+                                                            () =>
+                                                                rehypeSanitize(
+                                                                    schemas.validMarkdown,
+                                                                ),
+                                                        ]}
+                                                    />
+                                                </div>
                                             ) : (
-                                            <Skeleton count="12" />
+                                                <pre className="font-mono text-ink-100 whitespace-pre overflow-x-auto text-sm leading-relaxed">
+                                                    {tokenContent}
+                                                </pre>
+                                            )
+                                        ) : (
+                                            <Skeleton
+                                                count={12}
+                                                baseColor="#27272a"
+                                                highlightColor="#3f3f46"
+                                            />
                                         )}
                                     </div>
                                 </div>
                             ) : (
-                                <p>Connect a wallet to view this NFT</p>
+                                <div className="bg-ink-900/50 rounded-2xl border border-ink-800 p-12 text-center">
+                                    <p className="text-ink-400">
+                                        Connect a wallet to view this NFT
+                                    </p>
+                                </div>
                             )}
                         </div>
-                        <div className="column">
-                            <h1 className="title">
-                                {tokenData?.name !== null &&
-                                tokenData?.name !== undefined ? (
-                                    tokenData.name
-                                ) : (
-                                    <Skeleton />
-                                )}
-                            </h1>
-                            <p className="subtitle mb-1">
-                                {tokenAuthor !== null ? (
-                                    <>
-                                        by{" "}
-                                        <Address
-                                            address={tokenAuthor}
-                                            shorten
-                                            nChar={8}
+
+                        {/* Info Sidebar - 1/3 width on large screens */}
+                        <div className="space-y-6">
+                            {/* Title & Author */}
+                            <div className="bg-ink-900/50 rounded-2xl border border-ink-800 p-6">
+                                <h1 className="text-2xl font-bold text-white mb-2">
+                                    {tokenData?.name !== null &&
+                                    tokenData?.name !== undefined ? (
+                                        tokenData.name
+                                    ) : (
+                                        <Skeleton
+                                            baseColor="#27272a"
+                                            highlightColor="#3f3f46"
                                         />
-                                    </>
-                                ) : (
-                                    <Skeleton />
-                                )}
-                            </p>
-                            <div className="has-text-left m-0">
-                                {tokenType && totalSupply !== null ? (
-                                    <span>
-                                        <TypeTag type={tokenType} />
-                                        <span className="tag is-black ml-1">
-                                            Edition size:{" "}
-                                            {totalSupply.toString()}
-                                        </span>
-                                    </span>
+                                    )}
+                                </h1>
+
+                                <p className="text-ink-400 mb-4">
+                                    {tokenAuthor !== null ? (
+                                        <>
+                                            by{" "}
+                                            <Address
+                                                address={tokenAuthor}
+                                                shorten
+                                                nChar={8}
+                                            />
+                                        </>
+                                    ) : (
+                                        <Skeleton
+                                            width={150}
+                                            baseColor="#27272a"
+                                            highlightColor="#3f3f46"
+                                        />
+                                    )}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {tokenType && totalSupply !== null ? (
+                                        <>
+                                            <TypeTag type={tokenType} />
+                                            <span className="px-2 py-1 text-xs font-medium rounded bg-ink-800 text-ink-300">
+                                                Edition:{" "}
+                                                {totalSupply.toString()}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <Skeleton
+                                            width={180}
+                                            baseColor="#27272a"
+                                            highlightColor="#3f3f46"
+                                        />
+                                    )}
+                                </div>
+
+                                {tokenData?.description !== undefined &&
+                                tokenData?.description !== null ? (
+                                    <p className="text-ink-300 text-sm italic">
+                                        {tokenData.description}
+                                    </p>
                                 ) : (
                                     <Skeleton
-                                        className="mr-1"
-                                        inline
                                         count={2}
-                                        width={90}
+                                        baseColor="#27272a"
+                                        highlightColor="#3f3f46"
+                                    />
+                                )}
+
+                                {royaltyInfo &&
+                                tokenAuthor &&
+                                royaltyInfo?.amount !== null ? (
+                                    <div className="flex items-center gap-2 mt-4">
+                                        <p className="text-ink-500 text-xs">
+                                            {royaltyInfo.amount.toFixed(2)}%
+                                            royalty to{" "}
+                                            {royaltyInfo.recipient ===
+                                            tokenAuthor
+                                                ? "the author"
+                                                : royaltyInfo.recipient}
+                                        </p>
+                                        {tokenAuthor === walletAddress && (
+                                            <EditRoyaltyButton
+                                                id={id}
+                                                walletAddress={walletAddress}
+                                                currentRoyaltyPercentage={
+                                                    royaltyInfo?.amount
+                                                }
+                                                onUpdate={onUpdate}
+                                                minimal
+                                            />
+                                        )}
+                                    </div>
+                                ) : (
+                                    <Skeleton
+                                        width={200}
+                                        baseColor="#27272a"
+                                        highlightColor="#3f3f46"
+                                        className="mt-4"
                                     />
                                 )}
                             </div>
-                            <p className="is-italic">
-                                {tokenData?.description !== undefined &&
-                                tokenData?.description !== null ? (
-                                    tokenData.description
-                                ) : (
-                                    <Skeleton />
-                                )}
-                            </p>
 
-                            {royaltyInfo &&
-                            tokenAuthor &&
-                            royaltyInfo?.amount !== null ? (
-                                <p className="is-size-6 mt-5">
-                                    {royaltyInfo.amount.toFixed(2)}% of every
-                                    secondary sale goes to{" "}
-                                    {royaltyInfo.recipient == tokenAuthor
-                                        ? "the author"
-                                        : royaltyInfo.recipient}
-                                    .
-                                </p>
-                            ) : (
-                                <Skeleton />
-                            )}
-                            <hr />
-                            <Listings
-                                readProvider={readProvider}
-                                walletProvider={walletProvider}
-                                id={id}
-                                walletAddress={walletAddress}
-                                onUpdate={onUpdate}
-                                userBalance={userBalance()}
-                                userAvailableAmount={userAvailableAmount()}
-                                listingGroups={listingGroups()}
-                            />
-
-                            <hr />
-                            {readProvider && walletProvider ? (
-                                <div>
-                                    {userBalance() !== null ? (
-                                        userBalance() != 0 ? (
+                            {/* User's Holdings & Actions - only show if user owns this NFT */}
+                            {readProvider &&
+                                walletProvider &&
+                                userBalance() !== null &&
+                                userBalance() !== 0 && (
+                                    <div className="bg-ink-900/50 rounded-2xl border border-ink-800 p-6">
+                                        {/* Ownership stats */}
+                                        <div className="flex items-baseline justify-between mb-5">
                                             <div>
-                                                <p>Owned: {userBalance()}</p>
-                                                {userAvailableAmount() ===
-                                                null ? (
-                                                    <Skeleton />
-                                                ) : (
-                                                    <p>
-                                                        Not listed:{" "}
-                                                        {userAvailableAmount()}
-                                                    </p>
-                                                )}
-                                                <div className="is-flex is-justify-content-center">
-                                                    <TransferButton
-                                                        id={id}
-                                                        walletAddress={
-                                                            walletAddress
-                                                        }
-                                                        balance={userBalance()}
-                                                        availableAmount={userAvailableAmount()}
-                                                        onUpdate={onUpdate}
-                                                    />
-                                                    <BurnButton
-                                                        id={id}
-                                                        walletAddress={
-                                                            walletAddress
-                                                        }
-                                                        balance={userBalance()}
-                                                        availableAmount={userAvailableAmount()}
-                                                        onUpdate={onUpdate}
-                                                    />
-                                                </div>
-                                                <div className="is-flex is-justify-content-center mt-1">
-                                                    {tokenAuthor ==
-                                                    walletAddress ? (
-                                                        <EditRoyaltyButton
-                                                            id={id}
-                                                            walletAddress={
-                                                                walletAddress
-                                                            }
-                                                            currentRoyaltyPercentage={
-                                                                royaltyInfo?.amount
-                                                            }
-                                                            onUpdate={onUpdate}
-                                                        />
-                                                    ) : (
-                                                        <></>
-                                                    )}
-                                                </div>
+                                                <span className="text-3xl font-bold text-white">
+                                                    {userBalance()}
+                                                </span>
+                                                <span className="text-ink-400 text-sm ml-2">
+                                                    owned
+                                                </span>
                                             </div>
-                                        ) : (
-                                            <></>
-                                        )
-                                    ) : (
-                                        <Skeleton height={3} />
-                                    )}
-                                </div>
-                            ) : (
-                                <></>
-                            )}
-                            {readProvider ? (
-                                <>
-                                    <div class="tabs is-centered is-fullwidth">
-                                        <ul>
-                                            <li
-                                                className={
-                                                    isOwners
-                                                        ? "is-active has-text-weight-semibold"
-                                                        : ""
-                                                }
-                                                onClick={setOwners}
-                                            >
-                                                <a>Owners</a>
-                                            </li>
-                                            <li
-                                                className={
-                                                    isOwners
-                                                        ? ""
-                                                        : "is-active has-text-weight-semibold"
-                                                }
-                                                onClick={setHistory}
-                                            >
-                                                <a>History</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <div>
-                                        {isOwners ? (
-                                            <NFTOwners
-                                                balances={computeBalances(
-                                                    events
+                                            {userBalance() !==
+                                                userAvailableAmount() &&
+                                                userAvailableAmount() !==
+                                                    null && (
+                                                    <span className="text-ink-500 text-sm">
+                                                        {userAvailableAmount()}{" "}
+                                                        available
+                                                    </span>
                                                 )}
-                                            />
-                                        ) : (
-                                            <div
-                                                style={{
-                                                    maxHeight: "25em",
-                                                    overflowY: "auto",
-                                                }}
-                                            >
-                                                <NFTHistory
-                                                    history={parseHistory(
-                                                        events
-                                                    )}
-                                                    hideId
-                                                />
+                                        </div>
+
+                                        {/* Primary action - List for Sale */}
+                                        <ListButton
+                                            id={id}
+                                            userBalance={userBalance()}
+                                            userAvailableAmount={userAvailableAmount()}
+                                            onUpdate={onUpdate}
+                                            walletAddress={walletAddress}
+                                            fullWidth
+                                        />
+
+                                        {/* Secondary action - Transfer */}
+                                        <TransferButton
+                                            id={id}
+                                            walletAddress={walletAddress}
+                                            balance={userBalance()}
+                                            availableAmount={userAvailableAmount()}
+                                            onUpdate={onUpdate}
+                                            secondary
+                                        />
+
+                                        {/* User's active listings */}
+                                        {listingGroups()?.find(
+                                            (g) => g.seller === walletAddress,
+                                        )?.listings?.length > 0 && (
+                                            <div className="border-t border-ink-700 pt-4 mt-5">
+                                                <p className="text-xs text-ink-500 uppercase tracking-wide mb-3">
+                                                    Your Listings
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {listingGroups()
+                                                        .find(
+                                                            (g) =>
+                                                                g.seller ===
+                                                                walletAddress,
+                                                        )
+                                                        .listings.map(
+                                                            (listing) => (
+                                                                <div
+                                                                    key={
+                                                                        listing.id
+                                                                    }
+                                                                    className="flex items-center justify-between py-2"
+                                                                >
+                                                                    <div className="flex items-baseline gap-2">
+                                                                        <span className="text-white font-mono text-sm">
+                                                                            {
+                                                                                listing.price
+                                                                            }{" "}
+                                                                            ETH
+                                                                        </span>
+                                                                        {ethPrice && (
+                                                                            <span className="text-ink-500 text-xs">
+                                                                                $
+                                                                                {(
+                                                                                    parseFloat(
+                                                                                        listing.price,
+                                                                                    ) *
+                                                                                    ethPrice
+                                                                                ).toFixed(
+                                                                                    2,
+                                                                                )}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="text-ink-500 text-xs">
+                                                                            ×{" "}
+                                                                            {
+                                                                                listing.amount
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <EditButton
+                                                                            nftId={
+                                                                                id
+                                                                            }
+                                                                            listingId={
+                                                                                listing.id
+                                                                            }
+                                                                            balance={userBalance()}
+                                                                            onUpdate={
+                                                                                onUpdate
+                                                                            }
+                                                                            oldAmount={
+                                                                                listing.amount
+                                                                            }
+                                                                            availableAmount={userAvailableAmount()}
+                                                                            minimal
+                                                                        />
+                                                                        <DelistButton
+                                                                            nftId={
+                                                                                id
+                                                                            }
+                                                                            listingId={
+                                                                                listing.id
+                                                                            }
+                                                                            onUpdate={
+                                                                                onUpdate
+                                                                            }
+                                                                            minimal
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
-                                </>
-                            ) : (
-                                <></>
+                                )}
+
+                            {/* Marketplace - listings from others */}
+                            <div className="bg-ink-900/50 rounded-2xl border border-ink-800 p-6">
+                                <Listings
+                                    readProvider={readProvider}
+                                    walletProvider={walletProvider}
+                                    id={id}
+                                    walletAddress={walletAddress}
+                                    onUpdate={onUpdate}
+                                    listingGroups={listingGroups()}
+                                    showOnlyOthers={true}
+                                    ethPrice={ethPrice}
+                                />
+                            </div>
+
+                            {/* Owners */}
+                            {readProvider && (
+                                <div className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-ink-800/50">
+                                        <h3 className="text-sm font-medium text-ink-300">
+                                            Owners
+                                        </h3>
+                                    </div>
+                                    <div className="p-4 max-h-60 overflow-y-auto">
+                                        <NFTOwners
+                                            balances={computeBalances(events)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* History */}
+                            {readProvider && (
+                                <div className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-ink-800/50">
+                                        <h3 className="text-sm font-medium text-ink-300">
+                                            History
+                                        </h3>
+                                    </div>
+                                    <div className="p-4 max-h-72 overflow-y-auto">
+                                        <NFTHistory
+                                            history={parseHistory(events)}
+                                            hideId
+                                        />
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
                 </div>
             ) : (
-                <p>This NFT doesn't exist.</p>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+                    <div className="bg-ink-900/50 rounded-2xl border border-ink-800 p-12 inline-block">
+                        <p className="text-ink-400 text-lg">
+                            This NFT doesn't exist.
+                        </p>
+                        <a
+                            href="/"
+                            className="inline-flex items-center mt-4 px-6 py-3 bg-accent-cyan text-ink-950 font-medium rounded-lg hover:bg-accent-cyan/90 transition-colors"
+                        >
+                            Back to Home
+                        </a>
+                    </div>
+                </div>
             )}
         </div>
+    );
+}
+
+export function Head({ location }) {
+    const parsedQuery = queryString.parse(location.search);
+    const id = parsedQuery ? parseInt(parsedQuery.id) : null;
+    const title = id !== undefined && id !== null ? `#${id} - zang` : "zang";
+
+    return (
+        <>
+            <title>{title}</title>
+            <meta
+                name="description"
+                content="View this text-based NFT on zang.gallery"
+            />
+        </>
     );
 }

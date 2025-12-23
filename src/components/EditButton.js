@@ -1,6 +1,7 @@
 import React from "react";
 import { useState } from "react";
 import config from "../config";
+import getGasSettings from "../common/gas";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
 
@@ -24,6 +25,7 @@ export default function EditButton({
     balance,
     onUpdate,
     oldAmount,
+    minimal = false,
 }) {
     const marketplaceAddress = config.contractAddresses.v1.marketplace;
     const marketplaceABI = v1.marketplace;
@@ -55,7 +57,7 @@ export default function EditButton({
         const contract = new ethers.Contract(
             marketplaceAddress,
             marketplaceABI,
-            walletProvider
+            walletProvider,
         );
         const contractWithSigner = contract.connect(walletProvider.getSigner());
         let transactionFunction = null;
@@ -66,7 +68,8 @@ export default function EditButton({
                 contractWithSigner.editListingPrice(
                     nftId,
                     listingId,
-                    parseEther(newPrice).toString()
+                    parseEther(newPrice).toString(),
+                    getGasSettings(),
                 );
         } else if (newAmount !== null && newPrice === null) {
             // Replacing only amount
@@ -75,7 +78,8 @@ export default function EditButton({
                     nftId,
                     listingId,
                     newAmount,
-                    oldAmount
+                    oldAmount,
+                    getGasSettings(),
                 );
         } else if (newAmount !== null && newPrice !== null) {
             // Replacing both
@@ -85,13 +89,14 @@ export default function EditButton({
                     listingId,
                     parseEther(newPrice).toString(),
                     newAmount,
-                    oldAmount
+                    oldAmount,
+                    getGasSettings(),
                 );
         }
 
         const { success } = await handleTransaction(
             transactionFunction,
-            `Edit listing for NFT #${nftId}`
+            `Edit listing for NFT #${nftId}`,
         );
         if (success && onUpdate) {
             onUpdate(nftId);
@@ -99,13 +104,17 @@ export default function EditButton({
     };
 
     return (
-        <div>
+        <>
             <button
-                style={{ width: "7ch" }}
-                className="button is-black is-small mr-1"
+                className={
+                    minimal
+                        ? "text-ink-500 hover:text-ink-300 transition-colors text-sm"
+                        : "px-3 py-1.5 text-sm font-medium rounded-lg bg-ink-700 text-ink-200 hover:bg-ink-600 hover:text-white transition-colors"
+                }
                 onClick={() => setBuyModalOpen(true)}
+                title="Edit listing"
             >
-                Edit
+                {minimal ? "Edit" : "Edit"}
             </button>
             <EditModal
                 isOpen={buyModalOpen}
@@ -115,6 +124,6 @@ export default function EditButton({
                 availableAmount={availableAmount}
                 oldAmount={oldAmount}
             />
-        </div>
+        </>
     );
 }

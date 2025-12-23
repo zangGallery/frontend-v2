@@ -1,6 +1,6 @@
 # zang
 
-[zang](https://zang.gallery) is an on-chain text NFT platform.
+[zang](https://zang.gallery) is an onchain text NFT platform.
 
 ## Running a local instance
 

@@ -4,6 +4,7 @@ import { v1 } from "../common/abi";
 import { ListModal } from ".";
 import { parseEther } from "@ethersproject/units";
 import config from "../config";
+import getGasSettings from "../common/gas";
 import { useWalletProvider } from "../common/provider";
 import { useTransactionHelper } from "../common/transaction_status";
 
@@ -16,6 +17,7 @@ export default function ListButton({
     userAvailableAmount,
     onUpdate,
     walletAddress,
+    fullWidth = false,
 }) {
     const marketplaceAddress = config.contractAddresses.v1.marketplace;
     const marketplaceABI = v1.marketplace;
@@ -50,15 +52,20 @@ export default function ListButton({
         const contract = new ethers.Contract(
             marketplaceAddress,
             marketplaceABI,
-            walletProvider
+            walletProvider,
         );
         const contractWithSigner = contract.connect(walletProvider.getSigner());
         const transactionFunction = async () =>
-            await contractWithSigner.listToken(id, parseEther(price), amount);
+            await contractWithSigner.listToken(
+                id,
+                parseEther(price),
+                amount,
+                getGasSettings(),
+            );
 
         const { success } = await handleTransaction(
             transactionFunction,
-            `List NFT #${id}`
+            `List NFT #${id}`,
         );
         if (success && onUpdate) {
             onUpdate(id);
@@ -66,12 +73,12 @@ export default function ListButton({
     };
 
     return (
-        <div>
+        <>
             <button
-                className="button is-black"
+                className={`px-4 py-2.5 text-sm font-medium rounded-lg bg-accent-cyan text-ink-950 hover:bg-accent-cyan/90 transition-colors ${fullWidth ? "w-full" : ""}`}
                 onClick={() => setListModalOpen(true)}
             >
-                List
+                List for Sale
             </button>
             <ListModal
                 isOpen={listModalOpen}
@@ -83,6 +90,6 @@ export default function ListButton({
                 walletAddress={walletAddress}
                 onUpdate={onUpdate}
             />
-        </div>
+        </>
     );
 }

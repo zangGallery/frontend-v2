@@ -110,3 +110,8 @@ a#author {
 .Resizer.disabled:hover {
   border-color: transparent;
 }
+
+/* Sonner toast customizations */
+[data-sonner-toast] {
+  font-family: inherit;
+}
