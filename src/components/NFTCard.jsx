@@ -38,7 +38,7 @@ function TypeBadge({ type }) {
             bg: "bg-amber-500/10",
             border: "border-amber-500/30",
             text: "text-amber-400",
-            icon: "<Fragment>",
+            icon: "</>",
         },
     };
 
@@ -270,8 +270,8 @@ export default function NFTCard({ id }) {
                         )}
                     </div>
 
-                    {/* Gradient fade at bottom */}
-                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-ink-900 via-ink-900/80 to-transparent pointer-events-none" />
+                    {/* Gradient fade at bottom - subtle hint that content continues */}
+                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-ink-900/90 to-transparent pointer-events-none" />
 
                     {/* Hover reveal indicator */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-ink-950/40">
@@ -334,6 +334,15 @@ export default function NFTCard({ id }) {
                                 <span className="text-ink-700">·</span>
                                 <span className="text-green-400 whitespace-nowrap font-mono">
                                     {floorPrice} Ξ
+                                </span>
+                            </Fragment>
+                        )}
+
+                        {totalVolume !== null && totalVolume > 0 && (
+                            <Fragment>
+                                <span className="text-ink-700">·</span>
+                                <span className="text-ink-400 whitespace-nowrap font-mono">
+                                    {totalVolume.toFixed(4)} Ξ vol
                                 </span>
                             </Fragment>
                         )}

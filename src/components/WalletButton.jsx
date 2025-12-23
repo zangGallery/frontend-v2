@@ -1,7 +1,19 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useBalance } from "wagmi";
+import { formatEther } from "viem";
 import config from "../config";
 
 export default function WalletButton() {
+    const { address } = useAccount();
+    const { data: balance } = useBalance({
+        address,
+        chainId: config.networks.main.chainId,
+    });
+
+    const formattedBalance = balance
+        ? `${parseFloat(formatEther(balance.value)).toFixed(4)} ETH`
+        : null;
+
     return (
         <ConnectButton.Custom>
             {({
@@ -65,12 +77,12 @@ export default function WalletButton() {
                             return (
                                 <div className="flex items-center bg-ink-800/50 rounded-lg border border-ink-700/50 overflow-hidden">
                                     {/* Balance Display */}
-                                    {account.displayBalance &&
+                                    {formattedBalance &&
                                         chain.id ===
                                             config.networks.main.chainId && (
                                             <div className="px-3 py-2 flex items-center gap-2 text-ink-300 text-sm border-r border-ink-700/50">
                                                 <span className="font-mono">
-                                                    {account.displayBalance}
+                                                    {formattedBalance}
                                                 </span>
                                             </div>
                                         )}
