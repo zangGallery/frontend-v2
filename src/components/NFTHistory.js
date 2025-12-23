@@ -25,12 +25,20 @@ export default function NFTHistory({ history, hideId, newestFirst = false }) {
 
         for (const event of history) {
             if (!(event.blockNumber in blockToDate)) {
-                getBlockTime(readProvider, event.blockNumber).then((date) => {
-                    setBlockToDate((prev) => ({
-                        ...prev,
-                        [event.blockNumber]: date,
-                    }));
-                });
+                getBlockTime(readProvider, event.blockNumber)
+                    .then((date) => {
+                        setBlockToDate((prev) => ({
+                            ...prev,
+                            [event.blockNumber]: date,
+                        }));
+                    })
+                    .catch((e) => {
+                        console.warn(
+                            "Failed to get block time:",
+                            event.blockNumber,
+                            e.message,
+                        );
+                    });
             }
         }
     }, [history, readProvider, blockToDate, setBlockToDate]);
