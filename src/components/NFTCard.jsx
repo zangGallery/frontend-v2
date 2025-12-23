@@ -54,12 +54,13 @@ function TypeBadge({ type }) {
     );
 }
 
-export default function NFTCard({ id }) {
+// Accept optional prefetched data to avoid individual API calls
+export default function NFTCard({ id, prefetchedData }) {
     const navigate = useNavigate();
-    const [tokenData, setTokenData] = useState(null);
-    const [tokenAuthor, setTokenAuthor] = useState(null);
-    const [tokenType, setTokenType] = useState(null);
-    const [tokenContent, setTokenContent] = useState(null);
+    const [tokenData, setTokenData] = useState(prefetchedData ? { name: prefetchedData.name, description: prefetchedData.description, text_uri: prefetchedData.text_uri } : null);
+    const [tokenAuthor, setTokenAuthor] = useState(prefetchedData?.author || null);
+    const [tokenType, setTokenType] = useState(prefetchedData?.content_type || null);
+    const [tokenContent, setTokenContent] = useState(prefetchedData?.content || null);
     const [exists, setExists] = useState(true);
 
     // Stats
@@ -77,20 +78,14 @@ export default function NFTCard({ id }) {
 
         const fetchAllData = async () => {
             try {
-                // Fetch URI, author, and supply in parallel
-                const [tokenURI, author, supply] = await Promise.all([
-                    publicClient.readContract({
-                        address: zangAddress,
-                        abi: v1.zang,
-                        functionName: "uri",
-                        args: [BigInt(id)],
-                    }),
-                    publicClient.readContract({
-                        address: zangAddress,
-                        abi: v1.zang,
-                        functionName: "authorOf",
-                        args: [BigInt(id)],
-                    }),
+                // If we have prefetched data, only fetch mutable data
+                // Otherwise fetch both immutable (API) and mutable (RPC)
+                const apiPromise = prefetchedData
+                    ? Promise.resolve(prefetchedData)
+                    : fetch(`/api/nft/${id}`).then(r => r.ok ? r.json() : null);
+
+                const [apiData, supply] = await Promise.all([
+                    apiPromise,
                     publicClient.readContract({
                         address: zangAddress,
                         abi: v1.zang,
@@ -98,27 +93,15 @@ export default function NFTCard({ id }) {
                         args: [BigInt(id)],
                     }),
                 ]);
-                setTokenAuthor(author);
-                setTotalSupply(Number(supply));
 
-                // Fetch metadata
-                const tokenDataResponse = await fetch(tokenURI);
-                const newTokenData = await tokenDataResponse.json();
-                setTokenData(newTokenData);
-
-                // Fetch content if text_uri exists
-                if (newTokenData?.text_uri) {
-                    let parsedTextURI = newTokenData.text_uri.replaceAll(
-                        "#",
-                        "%23",
-                    );
-                    parsedTextURI = parsedTextURI.replace("charset=UTF-8,", "");
-
-                    const response = await fetch(parsedTextURI);
-                    const parsedText = await response.text();
-                    setTokenType(response.headers.get("content-type"));
-                    setTokenContent(parsedText);
+                // Only update if not prefetched (avoid unnecessary re-renders)
+                if (!prefetchedData && apiData) {
+                    setTokenAuthor(apiData.author);
+                    setTokenData({ name: apiData.name, description: apiData.description, text_uri: apiData.text_uri });
+                    setTokenType(apiData.content_type);
+                    setTokenContent(apiData.content);
                 }
+                setTotalSupply(Number(supply));
 
                 // Fetch marketplace listings
                 const listingCount = await publicClient.readContract({

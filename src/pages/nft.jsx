@@ -39,6 +39,7 @@ import { getEvents, computeBalances, parseHistory } from "../common/history";
 import NFTHistory from "../components/NFTHistory";
 
 import Address from "../components/Address";
+import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 
 const burnedIdsState = atom({
     key: "burnedIds",
@@ -75,6 +76,7 @@ export default function NFTPage() {
     const [listings, setListings] = useState(null);
 
     const [events, setEvents] = useState(null);
+    const [eventsMeta, setEventsMeta] = useSyncMeta();
 
     // View source toggle for markdown/html
     const [showSource, setShowSource] = useState(false);
@@ -98,6 +100,10 @@ export default function NFTPage() {
             firstMarketplaceBlock,
         );
         setEvents(events);
+        // Capture sync metadata if available (from API response)
+        if (events?._meta) {
+            setEventsMeta(events._meta);
+        }
     };
 
     const queryPrevValidId = async () => {
@@ -345,10 +351,35 @@ export default function NFTPage() {
             // Fetch lastNFTId first so prev/next queries can use it
             const fetchedLastNFTId = await queryLastNFTId();
 
-            queryTokenURI()
-                .then((tURI) => queryTokenData(tURI))
-                .then((newTokenData) => queryTokenContent(newTokenData));
-            queryTokenAuthor().then((author) => queryBalances(author));
+            // Fetch immutable data from API (cached)
+            try {
+                const response = await fetch(`/api/nft/${id}`);
+                if (response.ok) {
+                    const apiData = await response.json();
+                    setTokenAuthor(apiData.author);
+                    setTokenData({ name: apiData.name, description: apiData.description, text_uri: apiData.text_uri });
+                    setTokenType(apiData.content_type);
+                    setTokenContent(apiData.content);
+                    // Fetch balances with author from API
+                    queryBalances(apiData.author);
+                } else if (response.status === 404) {
+                    setExists(false);
+                } else {
+                    // Fallback to RPC if API fails
+                    queryTokenURI()
+                        .then((tURI) => queryTokenData(tURI))
+                        .then((newTokenData) => queryTokenContent(newTokenData));
+                    queryTokenAuthor().then((author) => queryBalances(author));
+                }
+            } catch (e) {
+                // Fallback to RPC if API unavailable
+                queryTokenURI()
+                    .then((tURI) => queryTokenData(tURI))
+                    .then((newTokenData) => queryTokenContent(newTokenData));
+                queryTokenAuthor().then((author) => queryBalances(author));
+            }
+
+            // Mutable data - always fetch from RPC
             queryRoyaltyInfo();
             queryTotalSupply();
             queryListings();
@@ -580,6 +611,19 @@ export default function NFTPage() {
 
     const onUpdate = (updatedNFTId) => {
         setUpdateTracker(([_, counter]) => [updatedNFTId, counter + 1]);
+    };
+
+    // Force sync and refresh events
+    const handleForceSync = async () => {
+        try {
+            await fetch("/api/sync/force", { method: "POST" });
+            // Re-fetch events
+            if (tokenAuthor) {
+                await queryBalances(tokenAuthor);
+            }
+        } catch (e) {
+            console.error("Error forcing sync:", e);
+        }
     };
 
     return (
@@ -1051,10 +1095,17 @@ export default function NFTPage() {
 
                             {/* History */}
                             <div className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
-                                <div className="px-4 py-3 border-b border-ink-800/50">
+                                <div className="px-4 py-3 border-b border-ink-800/50 flex items-center justify-between">
                                     <h3 className="text-sm font-medium text-ink-300">
                                         History
                                     </h3>
+                                    {eventsMeta && (
+                                        <SyncStatus
+                                            meta={eventsMeta}
+                                            onRefresh={handleForceSync}
+                                            compact
+                                        />
+                                    )}
                                 </div>
                                 <div className="p-4 max-h-72 overflow-y-auto">
                                     <NFTHistory

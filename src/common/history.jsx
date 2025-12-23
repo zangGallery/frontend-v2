@@ -104,12 +104,52 @@ const getTransferEvents = async (id, relevantAddresses, firstZangBlock) => {
     return foundEvents;
 };
 
+// Try to fetch events from cached API first, fallback to RPC
+const getEventsFromApi = async (id) => {
+    try {
+        const response = await fetch(`/api/events/${id}`);
+        if (response.ok) {
+            const { events, _meta } = await response.json();
+            // Transform API format to match RPC format
+            const transformedEvents = events.map(e => ({
+                event: e.event_type,
+                blockNumber: BigInt(e.block_number),
+                transactionHash: e.tx_hash,
+                logIndex: e.log_index,
+                args: e.data,
+            }));
+            return { events: transformedEvents, _meta };
+        }
+    } catch {
+        // Fallback to RPC
+    }
+    return null;
+};
+
 const getEvents = async (
     id,
     authorAddress,
     firstZangBlock,
     firstMarketplaceBlock,
 ) => {
+    // Try API first for single token (much faster)
+    if (id !== null) {
+        const apiResult = await getEventsFromApi(id);
+        if (apiResult && apiResult.events && apiResult.events.length > 0) {
+            // Sort and return with metadata
+            apiResult.events.sort((a, b) => {
+                const aBlock = Number(a.blockNumber);
+                const bBlock = Number(b.blockNumber);
+                if (aBlock !== bBlock) return aBlock - bBlock;
+                return a.logIndex - b.logIndex;
+            });
+            // Attach metadata to the array for consumers to access
+            apiResult.events._meta = apiResult._meta;
+            return apiResult.events;
+        }
+    }
+
+    // Fallback to RPC for uncached data or when fetching all events
     const idArg = id !== null ? { _tokenId: BigInt(id) } : undefined;
 
     const [tokenListedEvents, tokenDelistedEvents, tokenPurchasedEvents] =
@@ -296,11 +336,52 @@ const parseHistory = (events) => {
     return parsedEvents;
 };
 
+// In-memory cache for block timestamps to avoid duplicate fetches
+const blockTimeCache = new Map();
+const pendingBlockRequests = new Map();
+
 const getBlockTime = async (blockNumber) => {
-    const block = await publicClient.getBlock({
-        blockNumber: BigInt(blockNumber),
-    });
-    return new Date(Number(block.timestamp) * 1000);
+    // Check memory cache first
+    if (blockTimeCache.has(blockNumber)) {
+        return blockTimeCache.get(blockNumber);
+    }
+
+    // If there's already a pending request for this block, wait for it
+    if (pendingBlockRequests.has(blockNumber)) {
+        return pendingBlockRequests.get(blockNumber);
+    }
+
+    // Create the promise and store it
+    const fetchPromise = (async () => {
+        // Try API first (cached), fallback to RPC
+        try {
+            const response = await fetch(`/api/block/${blockNumber}`);
+            if (response.ok) {
+                const data = await response.json();
+                const date = new Date(data.timestamp * 1000);
+                blockTimeCache.set(blockNumber, date);
+                return date;
+            }
+        } catch {
+            // Fallback to RPC
+        }
+
+        const block = await publicClient.getBlock({
+            blockNumber: BigInt(blockNumber),
+        });
+        const date = new Date(Number(block.timestamp) * 1000);
+        blockTimeCache.set(blockNumber, date);
+        return date;
+    })();
+
+    pendingBlockRequests.set(blockNumber, fetchPromise);
+
+    try {
+        const result = await fetchPromise;
+        return result;
+    } finally {
+        pendingBlockRequests.delete(blockNumber);
+    }
 };
 
 export {

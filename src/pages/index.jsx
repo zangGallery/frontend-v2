@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useCallback } from "react";
 import { useEffect, useState } from "react";
 import { formatEther, zeroAddress } from "viem";
 import { publicClient } from "../common/provider";
@@ -11,6 +11,8 @@ import { useRecoilState } from "recoil";
 import { formatError, standardErrorState } from "../common/error";
 import StandardErrorDisplay from "../components/StandardErrorDisplay";
 import { useNavigate, Link } from "react-router-dom";
+import { useNewEvents, useSocketStatus } from "../common/socket";
+import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 
 import "../styles/tailwind.css";
 
@@ -155,10 +157,12 @@ export default function Home() {
     const navigate = useNavigate();
     const [lastNFTId, setLastNFTId] = useState(null);
     const [nfts, setNFTs] = useState([]);
+    const [nftDataCache, setNftDataCache] = useState({}); // Cache for prefetched NFT data
     const [, setStandardError] = useRecoilState(standardErrorState);
     const [recentEvents, setRecentEvents] = useState([]);
     const [totalVolume, setTotalVolume] = useState(null);
     const [uniqueArtists, setUniqueArtists] = useState(null);
+    const [activityMeta, setActivityMeta] = useSyncMeta();
 
     const increment = 6;
 
@@ -181,153 +185,261 @@ export default function Home() {
         fetchLastTokenId();
     }, [setStandardError]);
 
-    // Fetch recent events for live feed and stats
+    // Fetch recent events for live feed from cached API
     useEffect(() => {
         const fetchRecentEvents = async () => {
             try {
-                const currentBlock = await publicClient.getBlockNumber();
-                const fromBlock = BigInt(
-                    Math.max(
-                        Number(currentBlock) - 50000,
-                        config.firstBlocks.v1.base.zang,
-                    ),
-                );
+                // Fetch from cached API instead of RPC
+                const response = await fetch("/api/activity");
+                if (!response.ok) throw new Error("Failed to fetch activity");
 
-                // Fetch events in parallel
-                const [mintEvents, purchaseEvents, listEvents] =
-                    await Promise.all([
-                        publicClient.getContractEvents({
-                            address: zangAddress,
-                            abi: v1.zang,
-                            eventName: "TransferSingle",
-                            args: { from: zeroAddress },
-                            fromBlock,
-                        }),
-                        publicClient.getContractEvents({
-                            address: marketplaceAddress,
-                            abi: v1.marketplace,
-                            eventName: "TokenPurchased",
-                            fromBlock,
-                        }),
-                        publicClient.getContractEvents({
-                            address: marketplaceAddress,
-                            abi: v1.marketplace,
-                            eventName: "TokenListed",
-                            fromBlock,
-                        }),
-                    ]);
+                const { events: rawEvents, _meta } = await response.json();
+                setActivityMeta(_meta);
 
                 // Process events for feed
-                const events = [
-                    ...mintEvents.map((e) => ({
-                        type: "mint",
-                        id: e.args.id.toString(),
-                        blockNumber: Number(e.blockNumber),
-                    })),
-                    ...purchaseEvents.map((e) => ({
-                        type: "purchase",
-                        id: e.args._tokenId.toString(),
-                        price: formatEther(e.args._price),
-                        blockNumber: Number(e.blockNumber),
-                    })),
-                    ...listEvents.slice(-10).map((e) => ({
-                        type: "list",
-                        id: e.args._tokenId.toString(),
-                        price: formatEther(e.args._price),
-                        blockNumber: Number(e.blockNumber),
-                    })),
-                ]
-                    .sort((a, b) => b.blockNumber - a.blockNumber)
-                    .slice(0, 10);
+                const events = rawEvents.slice(0, 50).map((e) => {
+                    const data = e.data;
+                    let type = "transfer";
+                    let price = null;
 
-                // Fetch titles and content types for each unique NFT
+                    if (e.event_type === "TransferSingle" && data.from === "0x0000000000000000000000000000000000000000") {
+                        type = "mint";
+                    } else if (e.event_type === "TokenPurchased") {
+                        type = "purchase";
+                        price = formatEther(BigInt(data._price || 0));
+                    } else if (e.event_type === "TokenListed") {
+                        type = "list";
+                        price = formatEther(BigInt(data._price || 0));
+                    }
+
+                    return {
+                        type,
+                        id: e.token_id.toString(),
+                        blockNumber: Number(e.block_number),
+                        price,
+                    };
+                }).filter(e => e.type !== "transfer").slice(0, 10);
+
+                // Fetch titles using batch API
                 const uniqueIds = [...new Set(events.map((e) => e.id))];
+                const batchResponse = await fetch("/api/nfts/batch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids: uniqueIds }),
+                });
+
                 const nftData = {};
-                await Promise.all(
-                    uniqueIds.map(async (id) => {
-                        try {
-                            const tokenURI = await publicClient.readContract({
-                                address: zangAddress,
-                                abi: v1.zang,
-                                functionName: "uri",
-                                args: [BigInt(id)],
-                            });
-                            const response = await fetch(tokenURI);
-                            const metadata = await response.json();
-
-                            // Get content type from text_uri
+                if (batchResponse.ok) {
+                    const { nfts } = await batchResponse.json();
+                    for (const nft of nfts) {
+                        if (nft.data) {
                             let contentType = "text";
-                            if (metadata.text_uri) {
-                                if (
-                                    metadata.text_uri.startsWith(
-                                        "data:text/html",
-                                    )
-                                ) {
-                                    contentType = "HTML";
-                                } else if (
-                                    metadata.text_uri.startsWith(
-                                        "data:text/markdown",
-                                    )
-                                ) {
-                                    contentType = "Markdown";
-                                } else {
-                                    contentType = "text";
-                                }
+                            if (nft.data.content_type === "text/html") {
+                                contentType = "HTML";
+                            } else if (nft.data.content_type === "text/markdown") {
+                                contentType = "Markdown";
                             }
-
-                            nftData[id] = {
-                                title: metadata.name || `#${id}`,
+                            nftData[nft.id] = {
+                                title: nft.data.name || `#${nft.id}`,
                                 contentType,
                             };
-                        } catch {
-                            nftData[id] = {
-                                title: `#${id}`,
-                                contentType: "text",
-                            };
+                        } else {
+                            nftData[nft.id] = { title: `#${nft.id}`, contentType: "text" };
                         }
-                    }),
-                );
+                    }
+                }
 
                 // Add titles and content types to events
                 const eventsWithData = events.map((e) => ({
                     ...e,
-                    title: nftData[e.id]?.title,
-                    contentType: nftData[e.id]?.contentType,
+                    title: nftData[e.id]?.title || `#${e.id}`,
+                    contentType: nftData[e.id]?.contentType || "text",
                 }));
                 setRecentEvents(eventsWithData);
 
-                // Calculate total volume
-                const volume = purchaseEvents.reduce((sum, e) => {
-                    return (
-                        sum +
-                        parseFloat(formatEther(e.args._price)) *
-                            Number(e.args._amount)
-                    );
-                }, 0);
+                // Calculate total volume from purchase events in the full activity
+                const volume = rawEvents
+                    .filter(e => e.event_type === "TokenPurchased")
+                    .reduce((sum, e) => {
+                        const price = BigInt(e.data._price || 0);
+                        const amount = BigInt(e.data._amount || 1);
+                        return sum + parseFloat(formatEther(price * amount));
+                    }, 0);
                 setTotalVolume(volume);
-
-                // Get unique artists (minters)
-                const artists = new Set(mintEvents.map((e) => e.args.to));
-                setUniqueArtists(artists.size);
             } catch (e) {
-                // Error fetching events - silent fail
+                console.error("Error fetching activity:", e);
             }
         };
 
         fetchRecentEvents();
     }, []);
 
-    const getMoreIds = (count) => {
+    // Fetch unique artists count from DB
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const response = await fetch("/api/stats");
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.uniqueArtists > 0) {
+                        setUniqueArtists(data.uniqueArtists);
+                    }
+                }
+            } catch {
+                // Silent fail
+            }
+        };
+        fetchStats();
+    }, []);
+
+    // Force sync and refresh activity
+    const handleForceSync = useCallback(async () => {
+        try {
+            // Force sync first
+            await fetch("/api/sync/force", { method: "POST" });
+            // Then refetch activity
+            const response = await fetch("/api/activity");
+            if (response.ok) {
+                const { events: rawEvents, _meta } = await response.json();
+                setActivityMeta(_meta);
+                // Reprocess events (simplified for refresh)
+                const events = rawEvents.slice(0, 50).map((e) => {
+                    const data = e.data;
+                    let type = "transfer";
+                    let price = null;
+                    if (e.event_type === "TransferSingle" && data.from === "0x0000000000000000000000000000000000000000") {
+                        type = "mint";
+                    } else if (e.event_type === "TokenPurchased") {
+                        type = "purchase";
+                        price = formatEther(BigInt(data._price || 0));
+                    } else if (e.event_type === "TokenListed") {
+                        type = "list";
+                        price = formatEther(BigInt(data._price || 0));
+                    }
+                    return { type, id: e.token_id.toString(), blockNumber: Number(e.block_number), price };
+                }).filter(e => e.type !== "transfer").slice(0, 10);
+                setRecentEvents(events.map(e => ({ ...e, title: `#${e.id}`, contentType: "text" })));
+            }
+        } catch (e) {
+            console.error("Error forcing sync:", e);
+        }
+    }, []);
+
+    // WebSocket connection status
+    const isConnected = useSocketStatus();
+
+    // Handle real-time new events via WebSocket
+    const handleNewEvents = useCallback(async (newEvents) => {
+        // Filter for relevant event types
+        const relevantEvents = newEvents.filter(e =>
+            e.type === "TransferSingle" ||
+            e.type === "TokenListed" ||
+            e.type === "TokenPurchased"
+        );
+
+        if (relevantEvents.length === 0) return;
+
+        // Fetch NFT data for new events
+        const uniqueIds = [...new Set(relevantEvents.map(e => e.tokenId.toString()))];
+        const nftData = {};
+
+        try {
+            const batchResponse = await fetch("/api/nfts/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: uniqueIds }),
+            });
+
+            if (batchResponse.ok) {
+                const { nfts } = await batchResponse.json();
+                for (const nft of nfts) {
+                    if (nft.data) {
+                        let contentType = "text";
+                        if (nft.data.content_type === "text/html") contentType = "HTML";
+                        else if (nft.data.content_type === "text/markdown") contentType = "Markdown";
+                        nftData[nft.id] = { title: nft.data.name || `#${nft.id}`, contentType };
+                    }
+                }
+            }
+        } catch {
+            // Silent fail
+        }
+
+        // Create feed events from WebSocket events
+        const feedEvents = relevantEvents.map(e => {
+            let type = "transfer";
+            if (e.type === "TransferSingle") type = "mint"; // Simplified - assumes mints
+            else if (e.type === "TokenPurchased") type = "purchase";
+            else if (e.type === "TokenListed") type = "list";
+
+            return {
+                type,
+                id: e.tokenId.toString(),
+                blockNumber: e.blockNumber,
+                title: nftData[e.tokenId]?.title || `#${e.tokenId}`,
+                contentType: nftData[e.tokenId]?.contentType || "text",
+            };
+        }).filter(e => e.type !== "transfer");
+
+        // Prepend new events to the feed (newest first)
+        setRecentEvents(prev => [...feedEvents, ...prev].slice(0, 15));
+
+        // If there's a new mint, refresh lastNFTId
+        if (relevantEvents.some(e => e.type === "TransferSingle")) {
+            try {
+                const newLastNFTId = await publicClient.readContract({
+                    address: zangAddress,
+                    abi: v1.zang,
+                    functionName: "lastTokenId",
+                });
+                setLastNFTId(Number(newLastNFTId));
+            } catch {
+                // Silent fail
+            }
+        }
+    }, [zangAddress]);
+
+    useNewEvents(handleNewEvents);
+
+    const getMoreIds = async (count) => {
         const newNFTs = [...nfts];
+        const newIds = [];
 
         for (let i = 0; i < count; i++) {
-            const newId = lastNFTId - newNFTs.length;
+            const newId = lastNFTId - newNFTs.length - i;
             if (newId >= 1) {
-                newNFTs.push(newId);
+                newIds.push(newId);
             }
         }
 
-        setNFTs(newNFTs);
+        if (newIds.length === 0) return;
+
+        // Add IDs to list immediately for UI responsiveness
+        setNFTs([...newNFTs, ...newIds]);
+
+        // Batch fetch NFT data for all new IDs
+        try {
+            const response = await fetch("/api/nfts/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: newIds }),
+            });
+
+            if (response.ok) {
+                const { nfts: batchData } = await response.json();
+                const newCache = { ...nftDataCache };
+
+                for (const nft of batchData) {
+                    if (nft.data) {
+                        newCache[nft.id] = nft.data;
+                    }
+                }
+
+                setNftDataCache(newCache);
+            }
+        } catch (e) {
+            // Silent fail - individual NFTCards will fetch their own data
+        }
     };
 
     useEffect(() => {
@@ -419,7 +531,7 @@ export default function Home() {
                                         />
                                     </div>
                                     <div className="text-ink-500 text-sm">
-                                        artists (recent)
+                                        artists
                                     </div>
                                 </div>
                             )}
@@ -437,8 +549,17 @@ export default function Home() {
                         </div>
 
                         {/* Live Feed */}
-                        <div className="pt-8">
+                        <div className="pt-8 space-y-3">
                             <LiveFeed events={recentEvents} />
+                            {activityMeta && (
+                                <div className="max-w-md mx-auto">
+                                    <SyncStatus
+                                        meta={activityMeta}
+                                        onRefresh={handleForceSync}
+                                        compact
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -463,8 +584,8 @@ export default function Home() {
                         </p>
                     </div>
                     <div className="hidden sm:flex items-center gap-2 text-ink-600 text-sm font-mono">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        Live
+                        <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-ink-600"}`}></span>
+                        {isConnected ? "Live" : "Offline"}
                     </div>
                 </div>
 
@@ -542,7 +663,11 @@ export default function Home() {
                 >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
                         {nfts.map((id) => (
-                            <NFTCard id={id} key={id} />
+                            <NFTCard
+                                id={id}
+                                key={id}
+                                prefetchedData={nftDataCache[id]}
+                            />
                         ))}
                     </div>
                 </InfiniteScroll>
