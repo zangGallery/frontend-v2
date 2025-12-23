@@ -38,7 +38,7 @@ function TypeBadge({ type }) {
             bg: "bg-amber-500/10",
             border: "border-amber-500/30",
             text: "text-amber-400",
-            icon: "</>",
+            icon: "<>",
         },
     };
 
@@ -46,9 +46,9 @@ function TypeBadge({ type }) {
 
     return (
         <span
-            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono ${typeConfig.bg} ${typeConfig.border} ${typeConfig.text} border`}
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-mono ${typeConfig.bg} ${typeConfig.border} ${typeConfig.text} border`}
         >
-            <span className="opacity-60">{typeConfig.icon}</span>
+            <span className="opacity-60 w-4 text-center">{typeConfig.icon}</span>
             {typeConfig.label}
         </span>
     );

@@ -73,7 +73,7 @@ function TypeCard({
         >
             <div className="flex items-center gap-3 mb-2">
                 <span
-                    className={`text-2xl ${selected ? colors.icon : "text-ink-500"}`}
+                    className={`text-2xl w-8 text-center ${selected ? colors.icon : "text-ink-500"}`}
                 >
                     {icon}
                 </span>
@@ -268,8 +268,8 @@ export default function Mint() {
         {
             value: "text/html",
             label: "HTML",
-            icon: "<Fragment>",
-            description: "Rich content with CSS (no scripts)",
+            icon: "<>",
+            description: "Rich content with CSS",
             color: "amber",
         },
     ];

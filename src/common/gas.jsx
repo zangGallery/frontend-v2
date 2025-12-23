@@ -7,7 +7,7 @@ import { parseGwei } from "viem";
 // - We use a small buffer for reliability
 
 export const getGasSettings = () => ({
-    maxPriorityFeePerGas: 1000n, // 1000 wei - minimal but reliable
+    maxPriorityFeePerGas: 10n, // 10 wei - minimal tip for Base L2
     maxFeePerGas: parseGwei("0.001"), // 1000000 wei - ~2x base fee headroom
 });
 

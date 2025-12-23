@@ -1,12 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { RecoilRoot } from "recoil";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config } from "./common/wagmi";
 import Wrapper from "./Wrapper";
+
+// Scroll to top on route change
+function ScrollToTop() {
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+
+    return null;
+}
 
 import "@rainbow-me/rainbowkit/styles.css";
 import "./styles/tailwind.css";
@@ -35,6 +46,7 @@ function App() {
                     })}
                 >
                     <RecoilRoot>
+                        <ScrollToTop />
                         <Wrapper>
                             <Routes>
                                 <Route path="/" element={<HomePage />} />
