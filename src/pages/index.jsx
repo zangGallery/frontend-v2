@@ -351,7 +351,7 @@ export default function Home() {
 
                         {/* Typewriter headline */}
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-mono leading-tight">
-                            <span className="text-ink-400">{">"}</span>{" "}
+                            <span className="text-ink-400 hidden sm:inline">{">"}</span>{" "}
                             <TypewriterText
                                 phrases={[
                                     "Write beautifully.",

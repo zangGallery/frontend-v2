@@ -990,19 +990,13 @@ export default function NFTPage() {
                                                                     </div>
                                                                     <div className="flex items-center gap-3">
                                                                         <EditButton
-                                                                            nftId={
-                                                                                id
-                                                                            }
-                                                                            listingId={
-                                                                                listing.id
-                                                                            }
+                                                                            nftId={id}
+                                                                            listingId={listing.id}
                                                                             balance={userBalance()}
-                                                                            onUpdate={
-                                                                                onUpdate
-                                                                            }
-                                                                            oldAmount={
-                                                                                listing.amount
-                                                                            }
+                                                                            onUpdate={onUpdate}
+                                                                            oldAmount={listing.amount}
+                                                                            oldPrice={listing.price}
+                                                                            ethPrice={ethPrice}
                                                                             availableAmount={userAvailableAmount()}
                                                                             minimal
                                                                         />

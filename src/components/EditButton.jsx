@@ -21,6 +21,8 @@ export default function EditButton({
     balance,
     onUpdate,
     oldAmount,
+    oldPrice,
+    ethPrice,
     minimal = false,
 }) {
     const marketplaceAddress = config.contractAddresses.v1.marketplace;
@@ -114,6 +116,8 @@ export default function EditButton({
                 balance={balance}
                 availableAmount={availableAmount}
                 oldAmount={oldAmount}
+                oldPrice={oldPrice}
+                ethPrice={ethPrice}
             />
         </Fragment>
     );
