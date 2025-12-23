@@ -1,205 +1,205 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html {
-    @apply antialiased scroll-smooth;
-  }
+    html {
+        @apply antialiased scroll-smooth;
+    }
 
-  body {
-    @apply bg-ink-950 text-ink-100 font-sans;
-  }
+    body {
+        @apply bg-ink-950 text-ink-100 font-sans;
+    }
 
-  /* Text selection styling for art focus */
-  ::selection {
-    @apply bg-accent-magenta/30 text-white;
-  }
+    /* Text selection styling for art focus */
+    ::selection {
+        @apply bg-accent-magenta/30 text-white;
+    }
 
-  /* Smooth scrollbar for dark theme */
-  ::-webkit-scrollbar {
-    @apply w-2;
-  }
+    /* Smooth scrollbar for dark theme */
+    ::-webkit-scrollbar {
+        @apply w-2;
+    }
 
-  ::-webkit-scrollbar-track {
-    @apply bg-ink-900;
-  }
+    ::-webkit-scrollbar-track {
+        @apply bg-ink-900;
+    }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-ink-700 rounded-full hover:bg-ink-600;
-  }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-ink-700 rounded-full hover:bg-ink-600;
+    }
 }
 
 @layer components {
-  /* Primary button */
-  .btn-primary {
-    @apply px-6 py-3 bg-ink-100 text-ink-900 font-medium rounded-lg
+    /* Primary button */
+    .btn-primary {
+        @apply px-6 py-3 bg-ink-100 text-ink-900 font-medium rounded-lg
            hover:bg-white transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-accent-cyan focus:ring-offset-2 focus:ring-offset-ink-900
            disabled:opacity-50 disabled:cursor-not-allowed;
-  }
+    }
 
-  /* Secondary button */
-  .btn-secondary {
-    @apply px-6 py-3 border border-ink-600 text-ink-200 font-medium rounded-lg
+    /* Secondary button */
+    .btn-secondary {
+        @apply px-6 py-3 border border-ink-600 text-ink-200 font-medium rounded-lg
            hover:border-ink-400 hover:text-white transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-ink-500 focus:ring-offset-2 focus:ring-offset-ink-900
            disabled:opacity-50 disabled:cursor-not-allowed;
-  }
+    }
 
-  /* Ghost button */
-  .btn-ghost {
-    @apply px-4 py-2 text-ink-300 hover:text-white hover:bg-ink-800/50
+    /* Ghost button */
+    .btn-ghost {
+        @apply px-4 py-2 text-ink-300 hover:text-white hover:bg-ink-800/50
            rounded-lg transition-all duration-200;
-  }
+    }
 
-  /* NFT card container */
-  .card-nft {
-    @apply bg-ink-900/50 border border-ink-800 rounded-xl
+    /* NFT card container */
+    .card-nft {
+        @apply bg-ink-900/50 border border-ink-800 rounded-xl
            hover:border-ink-600 hover:bg-ink-900/80
            transition-all duration-300 backdrop-blur-sm
            hover:-translate-y-1 hover:shadow-lg hover:shadow-ink-950/50;
-  }
+    }
 
-  /* Form input field */
-  .input-field {
-    @apply w-full px-4 py-3 bg-ink-900 border border-ink-700 rounded-lg
+    /* Form input field */
+    .input-field {
+        @apply w-full px-4 py-3 bg-ink-900 border border-ink-700 rounded-lg
            text-ink-100 placeholder-ink-500
            focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan focus:outline-none
            transition-colors duration-200;
-  }
+    }
 
-  /* Form label */
-  .input-label {
-    @apply block text-sm font-medium text-ink-300 mb-2;
-  }
+    /* Form label */
+    .input-label {
+        @apply block text-sm font-medium text-ink-300 mb-2;
+    }
 
-  /* Form error message */
-  .input-error {
-    @apply text-sm text-red-400 mt-1;
-  }
+    /* Form error message */
+    .input-error {
+        @apply text-sm text-red-400 mt-1;
+    }
 
-  /* Text gradient effect */
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan via-accent-magenta to-accent-lime bg-200% animate-text-shimmer;
-  }
+    /* Text gradient effect */
+    .text-gradient {
+        @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan via-accent-magenta to-accent-lime bg-200% animate-text-shimmer;
+    }
 
-  /* Static gradient (no animation) */
-  .text-gradient-static {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-accent-magenta;
-  }
+    /* Static gradient (no animation) */
+    .text-gradient-static {
+        @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-accent-magenta;
+    }
 
-  /* Type tags */
-  .tag-plain {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+    /* Type tags */
+    .tag-plain {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
            bg-type-plain/20 text-type-plain border border-type-plain/30;
-  }
+    }
 
-  .tag-markdown {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+    .tag-markdown {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
            bg-type-markdown/20 text-type-markdown border border-type-markdown/30;
-  }
+    }
 
-  .tag-html {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+    .tag-html {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
            bg-type-html/20 text-type-html border border-type-html/30;
-  }
+    }
 
-  /* Modal overlay */
-  .modal-overlay {
-    @apply fixed inset-0 bg-ink-950/80 backdrop-blur-sm z-50
+    /* Modal overlay */
+    .modal-overlay {
+        @apply fixed inset-0 bg-ink-950/80 backdrop-blur-sm z-50
            flex items-center justify-center p-4;
-  }
+    }
 
-  /* Modal content */
-  .modal-content {
-    @apply bg-ink-900 border border-ink-700 rounded-2xl shadow-2xl
+    /* Modal content */
+    .modal-content {
+        @apply bg-ink-900 border border-ink-700 rounded-2xl shadow-2xl
            max-w-lg w-full max-h-[90vh] overflow-auto;
-  }
+    }
 
-  /* Modal header */
-  .modal-header {
-    @apply px-6 py-4 border-b border-ink-700;
-  }
+    /* Modal header */
+    .modal-header {
+        @apply px-6 py-4 border-b border-ink-700;
+    }
 
-  /* Modal body */
-  .modal-body {
-    @apply px-6 py-4;
-  }
+    /* Modal body */
+    .modal-body {
+        @apply px-6 py-4;
+    }
 
-  /* Modal footer */
-  .modal-footer {
-    @apply px-6 py-4 border-t border-ink-700 flex justify-end gap-3;
-  }
+    /* Modal footer */
+    .modal-footer {
+        @apply px-6 py-4 border-t border-ink-700 flex justify-end gap-3;
+    }
 
-  /* Navigation link with underline animation */
-  .nav-link {
-    @apply relative text-ink-300 hover:text-white transition-colors duration-200;
-  }
+    /* Navigation link with underline animation */
+    .nav-link {
+        @apply relative text-ink-300 hover:text-white transition-colors duration-200;
+    }
 
-  .nav-link::after {
-    @apply content-[''] absolute left-0 bottom-0 w-0 h-0.5 bg-accent-cyan
+    .nav-link::after {
+        @apply content-[''] absolute left-0 bottom-0 w-0 h-0.5 bg-accent-cyan
            transition-all duration-300;
-  }
+    }
 
-  .nav-link:hover::after {
-    @apply w-full;
-  }
+    .nav-link:hover::after {
+        @apply w-full;
+    }
 
-  .nav-link.active {
-    @apply text-white;
-  }
+    .nav-link.active {
+        @apply text-white;
+    }
 
-  .nav-link.active::after {
-    @apply w-full;
-  }
+    .nav-link.active::after {
+        @apply w-full;
+    }
 }
 
 @layer utilities {
-  /* Text balance for headlines */
-  .text-balance {
-    text-wrap: balance;
-  }
+    /* Text balance for headlines */
+    .text-balance {
+        text-wrap: balance;
+    }
 
-  /* Hide scrollbar but keep functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+    /* Hide scrollbar but keep functionality */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
 
-  /* Gradient border effect */
-  .gradient-border {
-    @apply relative;
-  }
+    /* Gradient border effect */
+    .gradient-border {
+        @apply relative;
+    }
 
-  .gradient-border::before {
-    @apply content-[''] absolute inset-0 rounded-xl p-px
+    .gradient-border::before {
+        @apply content-[''] absolute inset-0 rounded-xl p-px
            bg-gradient-to-r from-accent-cyan via-accent-magenta to-accent-lime
            -z-10;
-  }
+    }
 }
 
 /* Preserve existing globals.css utilities that might be needed during migration */
 .cursor-pointer {
-  cursor: pointer;
+    cursor: pointer;
 }
 
 /* NFT plain text display */
 .nft-plain {
-  @apply font-mono text-ink-200 whitespace-pre-wrap break-words bg-transparent;
+    @apply font-mono text-ink-200 whitespace-pre-wrap break-words bg-transparent;
 }
 
 /* Polygon/MATIC icon sizes */
 .matic-6 {
-  @apply w-6 h-6;
+    @apply w-6 h-6;
 }
 
 .matic-3 {
-  @apply w-3 h-3;
+    @apply w-3 h-3;
 }

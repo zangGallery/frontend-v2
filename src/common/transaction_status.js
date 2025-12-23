@@ -32,11 +32,11 @@ const transactionListenersState = atom({
 
 const useTransactionStatus = () => {
     const [transactionsStatus, setTransactionsStatus] = useRecoilState(
-        transactionStatusState
+        transactionStatusState,
     );
 
     const [transactionListeners, setTransactionListeners] = useRecoilState(
-        transactionListenersState
+        transactionListenersState,
     );
 
     const register = (listener) => {
@@ -78,7 +78,7 @@ const useTransactionStatus = () => {
 const useTransactionHelper = () => {
     const { updateTransactionStatus } = useTransactionStatus();
     const [transactionCount, setTransactionCount] = useRecoilState(
-        transactionCountState
+        transactionCountState,
     );
 
     const newId = () => {
@@ -90,7 +90,7 @@ const useTransactionHelper = () => {
         transactionFunction,
         transactionName,
         contentFunction,
-        rethrow
+        rethrow,
     ) => {
         const transactionId = newId();
         let transaction;
@@ -123,7 +123,7 @@ const useTransactionHelper = () => {
                           "success",
                           transaction,
                           true,
-                          receipt
+                          receipt,
                       )
                     : null,
             });

@@ -56,7 +56,7 @@ const etherValidator = (label) => (value, helpers) => {
         const digitCount = value.split(".")[1].length;
         if (digitCount > 18) {
             return helpers.message(
-                `"${label}" must have at most 18 decimal places after the decimal point`
+                `"${label}" must have at most 18 decimal places after the decimal point`,
             );
         }
     }
