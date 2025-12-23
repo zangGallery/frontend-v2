@@ -17,13 +17,13 @@ const whitespaceSafeCommand = (originalCommand, prefix, suffix) => ({
 
         try {
             // Adjust the selection to encompass the whole word if the caret is inside one
-            var newSelectionRange = MarkdownUtil.selectWord({
+            const newSelectionRange = MarkdownUtil.selectWord({
                 text: state.text,
                 selection: state.selection,
             });
 
             // Replaces the current selection with the mark up
-            var state1 = api.setSelectionRange(newSelectionRange);
+            const state1 = api.setSelectionRange(newSelectionRange);
             const text = state1.selectedText || "";
 
             const actualTextIndex = text.search(/\S|$/);
@@ -36,7 +36,7 @@ const whitespaceSafeCommand = (originalCommand, prefix, suffix) => ({
                     : text.substring(trailingWhitespaceIndex, text.length);
 
             // Adjust the selection to not contain the prefix and suffix
-            var state2 = api.replaceSelection(
+            const state2 = api.replaceSelection(
                 leadingWhitespace.concat(
                     prefix,
                     state1.selectedText.trim(),
@@ -72,10 +72,11 @@ const smartStrikethrough = whitespaceSafeCommand(strikethrough, "~~", "~~");
 
 const defaultCommands = getCommands();
 
-defaultCommands[defaultCommands.findIndex((x) => x.name == "bold")] = smartBold;
-defaultCommands[defaultCommands.findIndex((x) => x.name == "italic")] =
+defaultCommands[defaultCommands.findIndex((x) => x.name === "bold")] =
+    smartBold;
+defaultCommands[defaultCommands.findIndex((x) => x.name === "italic")] =
     smartItalic;
-defaultCommands[defaultCommands.findIndex((x) => x.name == "strikethrough")] =
+defaultCommands[defaultCommands.findIndex((x) => x.name === "strikethrough")] =
     smartStrikethrough;
 
 export { defaultCommands };

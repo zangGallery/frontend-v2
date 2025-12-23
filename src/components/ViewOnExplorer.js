@@ -1,5 +1,3 @@
-import React from "react";
-
 import config from "../config";
 
 export default function ViewOnExplorer({ hash }) {

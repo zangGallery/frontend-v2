@@ -30,7 +30,7 @@ export default function Header() {
                         ],
                     });
                 } catch (e) {
-                    console.log(e);
+                    // Chain switch request failed - silent fail
                 }
 
                 const network = await walletProvider.getNetwork();

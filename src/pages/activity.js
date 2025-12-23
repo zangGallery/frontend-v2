@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useEffect, useState, useCallback } from "react";
 import { Header } from "../components";
 
@@ -109,7 +110,6 @@ export default function Activity() {
 
             setEvents(limitedEvents);
         } catch (error) {
-            console.error("Error fetching events:", error);
             setEvents([]);
         } finally {
             setIsLoading(false);
@@ -177,12 +177,12 @@ export default function Activity() {
 
 export function Head() {
     return (
-        <>
+        <Fragment>
             <title>Activity - zang</title>
             <meta
                 name="description"
                 content="View recent activity on zang.gallery"
             />
-        </>
+        </Fragment>
     );
 }

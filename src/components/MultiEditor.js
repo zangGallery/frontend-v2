@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import rehypeSanitize from "rehype-sanitize";
 
 import MDEditor from "@uiw/react-md-editor";
@@ -59,7 +59,9 @@ export default function MultiEditor({ textType, value, setValue }) {
                 <div className="space-y-3">
                     <HTMLEditor value={value} setValue={setValue} />
                     <div className="flex items-center gap-2 p-3 bg-ink-900/50 rounded-lg border border-ink-800">
-                        <span className="text-amber-400 text-lg">{"<>"}</span>
+                        <span className="text-amber-400 text-lg">
+                            {"<Fragment>"}
+                        </span>
                         <p className="text-sm text-ink-400">
                             Write HTML with inline CSS. External resources and
                             scripts are sanitized for security.

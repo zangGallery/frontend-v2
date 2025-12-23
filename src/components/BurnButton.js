@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useState } from "react";
 import { useRecoilState } from "recoil";
 import { ethers } from "ethers";
@@ -67,7 +68,7 @@ export default function BurnButton({
     };
 
     return (
-        <>
+        <Fragment>
             <button
                 className="px-3 py-1.5 text-sm font-medium rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
                 onClick={() => setBurnModalOpen(true)}
@@ -81,6 +82,6 @@ export default function BurnButton({
                 balance={balance}
                 availableAmount={availableAmount}
             />
-        </>
+        </Fragment>
     );
 }

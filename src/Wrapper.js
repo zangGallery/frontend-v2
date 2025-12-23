@@ -1,4 +1,3 @@
-import React from "react";
 import TransactionNotifications from "./components/TransactionNotifications";
 
 export default function Wrapper({ children, props }) {

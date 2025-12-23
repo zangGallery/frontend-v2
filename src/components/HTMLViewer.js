@@ -1,70 +1,75 @@
-import React from "react";
-import { createElement, Fragment, useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { unified } from "unified";
 import rehypeParse from "rehype-parse";
-import rehypeReact from "rehype-react";
 import rehypeSanitize from "rehype-sanitize";
 import { schemas } from "../common";
 import rehypeStringify from "rehype-stringify";
 
 export default function HTMLViewer({ source }) {
-    const [height, setHeight] = useState("400px");
-    const ref = useRef();
+    const [height, setHeight] = useState(300);
+    const iframeRef = useRef(null);
 
-    const PADDING = 1.25; // rem
-
-    const convertRemToPixels = (rem) => {
-        return (
-            rem *
-            parseFloat(getComputedStyle(document.documentElement).fontSize)
-        );
-    };
-
-    const onLoad = () => {
-        if (typeof window !== "undefined" && ref.current) {
+    // Auto-resize iframe to fit content
+    const updateHeight = () => {
+        if (iframeRef.current) {
             try {
-                // Try to get content height
                 const contentHeight =
-                    ref.current.contentWindow?.document?.body?.scrollHeight;
-                if (contentHeight) {
-                    setHeight(
-                        parseFloat(contentHeight) +
-                            convertRemToPixels(PADDING * 2) +
-                            "px",
-                    );
+                    iframeRef.current.contentWindow?.document?.body
+                        ?.scrollHeight;
+                if (contentHeight && contentHeight > 50) {
+                    setHeight(Math.max(contentHeight + 32, 200)); // Add padding
                 }
             } catch (e) {
-                // If cross-origin error, keep default height
-                console.warn(
-                    "Could not access iframe content for height calculation",
-                );
+                // Cross-origin error, keep default
             }
         }
     };
 
+    // Update height when source changes
+    useEffect(() => {
+        const timer = setTimeout(updateHeight, 100);
+        return () => clearTimeout(timer);
+    }, [source]);
+
     const sanitize = (html) => {
         const sanitized = unified()
             .use(rehypeParse, { fragment: true })
-            .use(rehypeReact, { createElement, Fragment })
             .use(rehypeSanitize, schemas.validHTML)
             .use(rehypeStringify)
             .processSync(html);
-        return sanitized.value;
+        // Minimal wrapper - only set defaults that user can override
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            background: #18181b;
+            color: #e4e4e7;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body>${String(sanitized)}</body>
+</html>`;
     };
 
     return (
         <iframe
-            ref={ref}
-            onLoad={onLoad}
-            height={height}
+            ref={iframeRef}
+            onLoad={updateHeight}
             style={{
                 width: "100%",
-                overflow: "auto",
+                height: `${height}px`,
                 border: "none",
                 borderRadius: "8px",
+                display: "block",
             }}
             srcDoc={sanitize(source)}
-            sandbox="allow-same-origin"
+            sandbox="allow-scripts allow-same-origin"
             title="NFT HTML Content"
         />
     );

@@ -22,7 +22,7 @@ const getTransferEvents = async (
         if (
             !relevantAddresses.includes(address) &&
             !queriedAddresses.includes(address) &&
-            address != ethers.constants.AddressZero
+            address !== ethers.constants.AddressZero
         ) {
             relevantAddresses.push(address);
         }
@@ -32,8 +32,8 @@ const getTransferEvents = async (
         let eventExists = false;
         for (const foundEvent of foundEvents) {
             if (
-                foundEvent.transactionHash == event.transactionHash &&
-                foundEvent.logIndex == event.logIndex
+                foundEvent.transactionHash === event.transactionHash &&
+                foundEvent.logIndex === event.logIndex
             ) {
                 eventExists = true;
                 break;
@@ -94,7 +94,7 @@ const getTransferEvents = async (
             for (const event of eventGroup) {
                 const { from, to, operator, id: nftId } = event.args;
 
-                if (nftId == id || id === null) {
+                if (nftId === id || id === null) {
                     addAddress(from);
                     addAddress(to);
                     addAddress(operator);
@@ -148,7 +148,7 @@ const getEvents = async (
     const addRelevantAddress = (address) => {
         if (
             !relevantAddresses.includes(address) &&
-            address != ethers.constants.AddressZero
+            address !== ethers.constants.AddressZero
         ) {
             relevantAddresses.push(address);
         }
@@ -218,11 +218,11 @@ const computeBalances = (events) => {
     const balances = {};
 
     const updateBalance = (address, variation) => {
-        if (address == ethers.constants.AddressZero) {
+        if (address === ethers.constants.AddressZero) {
             return;
         }
 
-        if (balances[address] == undefined) {
+        if (balances[address] === undefined) {
             balances[address] = 0;
         }
 
@@ -230,7 +230,7 @@ const computeBalances = (events) => {
     };
 
     for (const event of events) {
-        if (event.event == "TransferSingle") {
+        if (event.event === "TransferSingle") {
             const { from, to, value } = event.args;
             updateBalance(from, -value.toNumber());
             updateBalance(to, value.toNumber());
@@ -240,7 +240,7 @@ const computeBalances = (events) => {
     // Filter out addresses with zero balance
     return Object.fromEntries(
         Object.keys(balances)
-            .filter((address) => balances[address] != 0)
+            .filter((address) => balances[address] !== 0)
             .map((address) => [address, balances[address]]),
     );
 };
@@ -275,9 +275,9 @@ const parseHistory = (events) => {
                 break;
             case "TransferSingle":
                 let transferType = "transfer";
-                if (event.args.from == ethers.constants.AddressZero) {
+                if (event.args.from === ethers.constants.AddressZero) {
                     transferType = "mint";
-                } else if (event.args.to == ethers.constants.AddressZero) {
+                } else if (event.args.to === ethers.constants.AddressZero) {
                     transferType = "burn";
                 }
                 parsedEvents.push({
@@ -306,20 +306,21 @@ const parseHistory = (events) => {
 
                 break;
             default:
-                console.log("Unknown event type: " + event.event);
+                // Unknown event type - ignore
+                break;
         }
     }
 
     for (const event of parsedEvents.filter(
-        (event) => event.type == "purchase",
+        (event) => event.type === "purchase",
     )) {
         // Filter out transfer and delist events that are part of the same purchase
         parsedEvents = parsedEvents.filter(
             (otherEvent) =>
                 !(
-                    (otherEvent.type == "transfer" ||
-                        otherEvent.type == "delist") &&
-                    event.transactionHash == otherEvent.transactionHash
+                    (otherEvent.type === "transfer" ||
+                        otherEvent.type === "delist") &&
+                    event.transactionHash === otherEvent.transactionHash
                 ),
         );
     }

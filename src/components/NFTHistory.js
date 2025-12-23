@@ -32,12 +32,8 @@ export default function NFTHistory({ history, hideId, newestFirst = false }) {
                             [event.blockNumber]: date,
                         }));
                     })
-                    .catch((e) => {
-                        console.warn(
-                            "Failed to get block time:",
-                            event.blockNumber,
-                            e.message,
-                        );
+                    .catch(() => {
+                        // Failed to get block time - silent fail
                     });
             }
         }

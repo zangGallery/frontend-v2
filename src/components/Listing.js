@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function Listing({ price, amount, ethPrice, children }) {
     const usdValue = ethPrice
         ? (parseFloat(price) * ethPrice).toFixed(2)

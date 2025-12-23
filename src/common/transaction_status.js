@@ -134,7 +134,6 @@ const useTransactionHelper = () => {
                 success: true,
             };
         } catch (e) {
-            console.log(e);
             updateTransactionStatus(transactionId, {
                 status: "error",
                 name: transactionName,

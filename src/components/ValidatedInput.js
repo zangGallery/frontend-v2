@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function ValidatedInput(props) {
     const relevantProps = { ...props };
     delete relevantProps.label;

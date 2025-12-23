@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { useState } from "react";
 import config from "../config";
 import getGasSettings from "../common/gas";
@@ -104,7 +104,7 @@ export default function EditButton({
     };
 
     return (
-        <>
+        <Fragment>
             <button
                 className={
                     minimal
@@ -124,6 +124,6 @@ export default function EditButton({
                 availableAmount={availableAmount}
                 oldAmount={oldAmount}
             />
-        </>
+        </Fragment>
     );
 }

@@ -1,5 +1,3 @@
-import React from "react";
-
 const typeConfig = {
     "text/plain": {
         label: "TXT",

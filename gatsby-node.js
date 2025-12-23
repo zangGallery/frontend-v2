@@ -1,6 +1,13 @@
 const webpack = require("webpack");
 
 exports.onCreateWebpackConfig = ({ stage, actions }) => {
+    // Disable source maps in production
+    if (stage === "build-javascript") {
+        actions.setWebpackConfig({
+            devtool: false,
+        });
+    }
+
     actions.setWebpackConfig({
         resolve: {
             fallback: {
@@ -23,6 +30,7 @@ exports.onCreateWebpackConfig = ({ stage, actions }) => {
             new webpack.ProvidePlugin({
                 process: "process/browser",
                 Buffer: ["buffer", "Buffer"],
+                React: "react",
             }),
         ],
     });

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useState } from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
@@ -31,7 +32,7 @@ export default function EditRoyaltyButton({
         currentRoyaltyPercentage === null ||
         currentRoyaltyPercentage === undefined
     ) {
-        return <></>;
+        return <Fragment></Fragment>;
     }
 
     const editRoyalty = async (royaltyPercentage) => {
@@ -79,7 +80,7 @@ export default function EditRoyaltyButton({
     };
 
     return (
-        <>
+        <Fragment>
             <button
                 className={
                     minimal
@@ -113,6 +114,6 @@ export default function EditRoyaltyButton({
                 onClose={editRoyalty}
                 currentRoyaltyPercentage={currentRoyaltyPercentage}
             />
-        </>
+        </Fragment>
     );
 }

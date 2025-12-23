@@ -1,4 +1,3 @@
-import React from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
 import config from "../config";

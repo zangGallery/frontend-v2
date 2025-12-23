@@ -1,5 +1,3 @@
-import React from "react";
-
 import BuyButton from "./BuyButton";
 import FulfillabilityInfo from "./FulfillabilityInfo";
 import Listing from "./Listing";

@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { useEffect, useState, useMemo } from "react";
 import { ethers } from "ethers";
 import { useReadProvider } from "../common/provider";
@@ -39,7 +39,7 @@ function TypeBadge({ type }) {
             bg: "bg-amber-500/10",
             border: "border-amber-500/30",
             text: "text-amber-400",
-            icon: "<>",
+            icon: "<Fragment>",
         },
     };
 
@@ -185,8 +185,6 @@ export default function NFTCard({ id }) {
             } catch (e) {
                 if (isTokenExistenceError(e)) {
                     setExists(false);
-                } else {
-                    console.error(`Error loading NFT ${id}:`, e);
                 }
             }
         };
@@ -225,7 +223,7 @@ export default function NFTCard({ id }) {
                 </div>
 
                 {/* Preview Area */}
-                <div className="relative h-44 overflow-hidden">
+                <div className="relative h-52 overflow-hidden">
                     <div className="absolute inset-0 p-4 overflow-hidden">
                         {tokenType && tokenContent !== null ? (
                             tokenType === "text/html" ? (
@@ -274,28 +272,35 @@ export default function NFTCard({ id }) {
                     </div>
                 </div>
 
-                {/* Content Area */}
-                <div className="p-4 bg-gradient-to-b from-ink-900 to-ink-900/80">
-                    {/* Title */}
-                    <h3 className="text-ink-100 font-medium text-base leading-tight line-clamp-1 group-hover:text-white transition-colors">
-                        {tokenData?.name || (
-                            <Skeleton
-                                baseColor="#1c1c1e"
-                                highlightColor="#2a2a2e"
-                                width="70%"
-                            />
+                {/* Content Area - Compact */}
+                <div className="px-3 py-2.5 bg-gradient-to-b from-ink-900 to-ink-900/80">
+                    {/* Title and Author row */}
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-ink-100 font-medium text-sm leading-tight line-clamp-1 group-hover:text-white transition-colors flex-1 min-w-0">
+                            {tokenData?.name || (
+                                <Skeleton
+                                    baseColor="#1c1c1e"
+                                    highlightColor="#2a2a2e"
+                                    width="70%"
+                                />
+                            )}
+                        </h3>
+                        {tokenAuthor && (
+                            <span className="text-ink-500 text-xs font-mono shrink-0">
+                                <Address
+                                    address={tokenAuthor}
+                                    shorten
+                                    nChar={4}
+                                    disableLink
+                                />
+                            </span>
                         )}
-                    </h3>
-
-                    {/* Description - fixed height to keep cards consistent */}
-                    <p className="text-ink-500 text-xs line-clamp-2 leading-relaxed mt-1.5 min-h-[2.5rem]">
-                        {tokenData?.description || ""}
-                    </p>
+                    </div>
 
                     {/* Stats row */}
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-ink-800/50 text-xs overflow-hidden">
+                    <div className="flex items-center gap-1.5 mt-1.5 text-xs">
                         {totalSupply !== null ? (
-                            <span className="text-ink-400 whitespace-nowrap">
+                            <span className="text-ink-500 whitespace-nowrap">
                                 {totalSupply} ed.
                             </span>
                         ) : (
@@ -307,54 +312,21 @@ export default function NFTCard({ id }) {
                         )}
 
                         {listedCount !== null && listedCount > 0 && (
-                            <>
+                            <Fragment>
                                 <span className="text-ink-700">·</span>
-                                <span className="text-ink-400 whitespace-nowrap">
+                                <span className="text-ink-500 whitespace-nowrap">
                                     {listedCount} listed
                                 </span>
-                            </>
+                            </Fragment>
                         )}
 
                         {floorPrice !== null && (
-                            <>
+                            <Fragment>
                                 <span className="text-ink-700">·</span>
                                 <span className="text-green-400 whitespace-nowrap font-mono">
                                     {floorPrice} Ξ
                                 </span>
-                            </>
-                        )}
-
-                        {totalVolume !== null && totalVolume > 0 && (
-                            <>
-                                <span className="text-ink-700">·</span>
-                                <span className="text-ink-400 whitespace-nowrap font-mono">
-                                    {totalVolume.toFixed(
-                                        totalVolume < 0.01 ? 4 : 3,
-                                    )}{" "}
-                                    Ξ vol
-                                </span>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Author */}
-                    <div className="flex items-center gap-2 text-xs mt-2">
-                        <span className="text-ink-500">by</span>
-                        {tokenAuthor ? (
-                            <span className="text-ink-400 font-mono">
-                                <Address
-                                    address={tokenAuthor}
-                                    shorten
-                                    nChar={6}
-                                    disableLink
-                                />
-                            </span>
-                        ) : (
-                            <Skeleton
-                                width={80}
-                                baseColor="#1c1c1e"
-                                highlightColor="#2a2a2e"
-                            />
+                            </Fragment>
                         )}
                     </div>
                 </div>

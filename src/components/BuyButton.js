@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { useState } from "react";
 import config from "../config";
 import getGasSettings from "../common/gas";
@@ -60,9 +60,7 @@ export default function BuyButton({
         const contractWithSigner = contract.connect(walletProvider.getSigner());
 
         // Convert to wei
-        console.log("Original price:", price);
         price = parseEther(price);
-        console.log("Converted:", price.toString());
 
         const transactionFunction = async () =>
             await contractWithSigner.buyToken(nftId, listingId, amount, {
@@ -79,7 +77,7 @@ export default function BuyButton({
     };
 
     return (
-        <>
+        <Fragment>
             <button
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     sellerBalance === 0
@@ -99,6 +97,6 @@ export default function BuyButton({
                 sellerBalance={sellerBalance}
                 price={price}
             />
-        </>
+        </Fragment>
     );
 }

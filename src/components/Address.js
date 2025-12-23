@@ -1,4 +1,3 @@
-import React from "react";
 import config from "../config";
 import { useEns } from "../common/ens";
 import { shortenAddress } from "../common/utils";

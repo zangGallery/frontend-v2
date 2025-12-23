@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { Header } from "../components";
 
 import "../styles/tailwind.css";
@@ -34,12 +34,12 @@ export default function Bridge() {
 
 export function Head() {
     return (
-        <>
+        <Fragment>
             <title>Bridge - zang</title>
             <meta
                 name="description"
                 content="Bridge assets to Base for zang.gallery"
             />
-        </>
+        </Fragment>
     );
 }

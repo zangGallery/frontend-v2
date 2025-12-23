@@ -22,7 +22,7 @@ const useEns = () => {
         try {
             ensAddress = await ensProvider.lookupAddress(address);
         } catch (e) {
-            console.warn("ENS lookup failed for", address, e.message);
+            // ENS lookup failed - silent fail
         }
 
         setEnsInfo((currentEnsInfo) => ({

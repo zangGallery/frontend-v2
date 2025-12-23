@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import config from "../config";
 
 // Use JsonRpcProvider for Base network
-var defaultReadProvider = new ethers.providers.JsonRpcProvider(
+const defaultReadProvider = new ethers.providers.JsonRpcProvider(
     config.networks.main.rpcUrl,
     {
         chainId: config.networks.main.chainId,
@@ -11,10 +11,10 @@ var defaultReadProvider = new ethers.providers.JsonRpcProvider(
     },
 );
 
-var _readProvider = defaultReadProvider;
-var _walletProvider = null;
-var _readListeners = [];
-var _writeListeners = [];
+let _readProvider = defaultReadProvider;
+let _walletProvider = null;
+const _readListeners = [];
+const _writeListeners = [];
 
 const _useComponentWillUnmount = (action) => {
     useEffect(() => {
@@ -73,15 +73,14 @@ const restoreDefaultReadProvider = () => {
 };
 
 // ENS provider for mainnet (for ENS resolution)
-// Use Alchemy if available, otherwise fallback to Infura
 const ensProvider = config.api_keys.alchemy_mainnet
     ? new ethers.providers.AlchemyProvider(
           config.networks.ens.chainId,
           config.api_keys.alchemy_mainnet,
       )
-    : new ethers.providers.InfuraProvider(
+    : new ethers.providers.JsonRpcProvider(
+          "https://eth.llamarpc.com",
           config.networks.ens.chainId,
-          config.api_keys.infura.project_id,
       );
 
 export {

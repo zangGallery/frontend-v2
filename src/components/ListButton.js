@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useState } from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
@@ -73,7 +74,7 @@ export default function ListButton({
     };
 
     return (
-        <>
+        <Fragment>
             <button
                 className={`px-4 py-2.5 text-sm font-medium rounded-lg bg-accent-cyan text-ink-950 hover:bg-accent-cyan/90 transition-colors ${fullWidth ? "w-full" : ""}`}
                 onClick={() => setListModalOpen(true)}
@@ -90,6 +91,6 @@ export default function ListButton({
                 walletAddress={walletAddress}
                 onUpdate={onUpdate}
             />
-        </>
+        </Fragment>
     );
 }

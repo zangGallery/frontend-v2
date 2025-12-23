@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useEffect, useState } from "react";
 import { useReadProvider, useWalletProvider } from "../common/provider";
 import { NFTCard } from "../components";
@@ -227,12 +228,12 @@ export default function Home() {
 
 export function Head() {
     return (
-        <>
+        <Fragment>
             <title>Vault - zang</title>
             <meta
                 name="description"
                 content="View your owned text-based NFTs on zang.gallery"
             />
-        </>
+        </Fragment>
     );
 }

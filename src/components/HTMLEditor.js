@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useState } from "react";
 
 import HTMLViewer from "./HTMLViewer";
@@ -12,8 +13,11 @@ export default function HTMLEditor({ value, setValue }) {
         const { Split } = require("@geoffcox/react-splitter");
 
         return (
-            <>
-                <div className="rounded-lg overflow-hidden border border-ink-700">
+            <Fragment>
+                <div
+                    className="rounded-lg border border-ink-700 relative"
+                    style={{ zIndex: 0 }}
+                >
                     <div style={{ height: "500px" }}>
                         <Split
                             horizontal={false}
@@ -102,7 +106,7 @@ export default function HTMLEditor({ value, setValue }) {
                         </div>
                     </div>
                 )}
-            </>
+            </Fragment>
         );
     }
     return null;

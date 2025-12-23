@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { useEffect, useState } from "react";
 import { atom, useRecoilState } from "recoil";
 import {
@@ -122,7 +122,6 @@ export default function NFTPage({ location }) {
             firstZangBlock,
             firstMarketplaceBlock,
         );
-        console.log("Find events", events, id, author);
         setEvents(events);
     };
 
@@ -200,8 +199,7 @@ export default function NFTPage({ location }) {
         }
 
         while (nextId <= actualLastNFTId && !isValid) {
-            if (nextId == actualLastNFTId) {
-                console.log("Querying...");
+            if (nextId === actualLastNFTId) {
                 await queryLastNFTId();
             }
             if (burnedIds.includes(nextId)) {
@@ -420,7 +418,7 @@ export default function NFTPage({ location }) {
                 const data = await response.json();
                 setEthPrice(data.ethereum.usd);
             } catch (e) {
-                console.error("Failed to fetch ETH price:", e);
+                // Failed to fetch ETH price - silent fail
             }
         };
         fetchEthPrice();
@@ -489,7 +487,7 @@ export default function NFTPage({ location }) {
         }
 
         for (const listing of activeListings()) {
-            if (listing.seller == address) {
+            if (listing.seller === address) {
                 _availableAmount -= listing.amount;
             }
         }
@@ -534,7 +532,7 @@ export default function NFTPage({ location }) {
                                 id: i,
                             }),
                         )
-                        .catch((e) => console.log(e)),
+                        .catch(() => null),
                 );
             }
 
@@ -701,7 +699,7 @@ export default function NFTPage({ location }) {
                                                     }`}
                                                 >
                                                     {showSource ? (
-                                                        <>
+                                                        <Fragment>
                                                             <svg
                                                                 className="w-4 h-4"
                                                                 fill="none"
@@ -726,9 +724,9 @@ export default function NFTPage({ location }) {
                                                                 />
                                                             </svg>
                                                             View Rendered
-                                                        </>
+                                                        </Fragment>
                                                     ) : (
-                                                        <>
+                                                        <Fragment>
                                                             <svg
                                                                 className="w-4 h-4"
                                                                 fill="none"
@@ -745,12 +743,12 @@ export default function NFTPage({ location }) {
                                                                 />
                                                             </svg>
                                                             View Source
-                                                        </>
+                                                        </Fragment>
                                                     )}
                                                 </button>
                                             </div>
                                         )}
-                                    <div className="p-6 min-h-[300px]">
+                                    <div className="p-6">
                                         {tokenType &&
                                         (tokenContent ||
                                             tokenContent === "") ? (
@@ -850,14 +848,14 @@ export default function NFTPage({ location }) {
 
                                 <p className="text-ink-400 mb-4">
                                     {tokenAuthor !== null ? (
-                                        <>
+                                        <Fragment>
                                             by{" "}
                                             <Address
                                                 address={tokenAuthor}
                                                 shorten
                                                 nChar={8}
                                             />
-                                        </>
+                                        </Fragment>
                                     ) : (
                                         <Skeleton
                                             width={150}
@@ -869,13 +867,13 @@ export default function NFTPage({ location }) {
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {tokenType && totalSupply !== null ? (
-                                        <>
+                                        <Fragment>
                                             <TypeTag type={tokenType} />
                                             <span className="px-2 py-1 text-xs font-medium rounded bg-ink-800 text-ink-300">
                                                 Edition:{" "}
                                                 {totalSupply.toString()}
                                             </span>
-                                        </>
+                                        </Fragment>
                                     ) : (
                                         <Skeleton
                                             width={180}
@@ -1143,12 +1141,12 @@ export function Head({ location }) {
     const title = id !== undefined && id !== null ? `#${id} - zang` : "zang";
 
     return (
-        <>
+        <Fragment>
             <title>{title}</title>
             <meta
                 name="description"
                 content="View this text-based NFT on zang.gallery"
             />
-        </>
+        </Fragment>
     );
 }

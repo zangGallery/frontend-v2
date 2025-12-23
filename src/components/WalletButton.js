@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { ethers } from "ethers";
 import Web3Modal from "web3modal";
 import WalletConnectProvider from "@walletconnect/web3-provider";
@@ -86,8 +86,6 @@ export default function WalletButton() {
         } catch (e) {
             if (e?.message) {
                 setStandardError(formatError(e));
-            } else {
-                console.log(e);
             }
             return;
         }
@@ -148,7 +146,7 @@ export default function WalletButton() {
                 setEnsAvatar(_ensAvatar);
             }
         } catch (e) {
-            console.log(e);
+            // ENS avatar lookup failed - silent fail
         }
     };
 
@@ -170,7 +168,7 @@ export default function WalletButton() {
                     className="px-4 py-2 flex items-center gap-2 text-sm font-medium text-ink-100 hover:bg-ink-700/50 transition-colors"
                 >
                     {walletProvider ? (
-                        <>
+                        <Fragment>
                             {ensAvatar && (
                                 <img
                                     className="w-5 h-5 rounded-full object-cover"
@@ -181,9 +179,9 @@ export default function WalletButton() {
                             <span className="font-mono text-xs">
                                 {ensAddress || truncateAddress(walletAddress)}
                             </span>
-                        </>
+                        </Fragment>
                     ) : (
-                        <>
+                        <Fragment>
                             <svg
                                 className="w-4 h-4"
                                 fill="none"
@@ -198,7 +196,7 @@ export default function WalletButton() {
                                 />
                             </svg>
                             <span>Connect</span>
-                        </>
+                        </Fragment>
                     )}
                 </button>
             </div>

@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function MintConfirmModal({ isOpen, setIsOpen, onClose }) {
     const closeModal = (confirmed) => {
         setIsOpen(false);

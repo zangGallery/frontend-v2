@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useState } from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
@@ -92,7 +93,7 @@ export default function TransferButton({
     };
 
     return (
-        <>
+        <Fragment>
             <button
                 className={
                     secondary
@@ -110,6 +111,6 @@ export default function TransferButton({
                 balance={balance}
                 availableAmount={availableAmount}
             />
-        </>
+        </Fragment>
     );
 }

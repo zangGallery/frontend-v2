@@ -25,12 +25,8 @@ const config = {
         },
     },
     api_keys: {
-        alchemy: process.env.GATSBY_ALCHEMY_API_KEY,
         alchemy_base: process.env.GATSBY_ALCHEMY_BASE_API_KEY,
         alchemy_mainnet: process.env.GATSBY_ALCHEMY_MAINNET_API_KEY,
-        infura: {
-            project_id: "0781eeb9a06842599941233024a4218c",
-        },
     },
     ens: {
         cacheExpiration: 1000 * 60 * 2, // 2 minutes

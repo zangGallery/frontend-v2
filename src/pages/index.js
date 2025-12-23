@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useEffect, useState } from "react";
 import { defaultReadProvider, useReadProvider } from "../common/provider";
 import { NFTCard } from "../components";
@@ -313,7 +314,7 @@ export default function Home() {
                 const artists = new Set(mintEvents.map((e) => e.args.to));
                 setUniqueArtists(artists.size);
             } catch (e) {
-                console.error("Error fetching events:", e);
+                // Error fetching events - silent fail
             }
         };
 
@@ -553,7 +554,7 @@ export default function Home() {
 // Gatsby Head API for SEO
 export function Head() {
     return (
-        <>
+        <Fragment>
             <title>zang - Text-based NFTs</title>
             <meta
                 name="description"
@@ -565,6 +566,6 @@ export function Head() {
             />
             <meta charSet="utf-8" />
             <link rel="icon" href="/favicon.ico" />
-        </>
+        </Fragment>
     );
 }

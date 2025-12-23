@@ -16,7 +16,7 @@ const isTokenExistenceError = (e) => {
 
 const formatError = (e) => {
     if (e.message) {
-        if (e.message == "Internal JSON-RPC error." && e.data?.message) {
+        if (e.message === "Internal JSON-RPC error." && e.data?.message) {
             return "Internal JSON-RPC error: " + e.data.message + ".";
         }
 

@@ -1,4 +1,4 @@
-import * as React from "react";
+import { Fragment } from "react";
 import { Link } from "gatsby";
 import { Header } from "../components";
 
@@ -79,9 +79,9 @@ export default NotFoundPage;
 
 export function Head() {
     return (
-        <>
+        <Fragment>
             <title>404 - Page Not Found | zang</title>
             <meta name="description" content="Page not found on zang.gallery" />
-        </>
+        </Fragment>
     );
 }

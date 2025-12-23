@@ -125,3 +125,9 @@ a#author {
 [data-sonner-toast] {
     font-family: inherit;
 }
+
+/* Constrain Ace Editor z-index to prevent it from overlapping modals */
+.ace_editor,
+.ace_editor * {
+    z-index: auto !important;
+}

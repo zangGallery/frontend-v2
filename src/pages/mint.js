@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import React, { useState } from "react";
 import { ethers } from "ethers";
 import { v1 } from "../common/abi";
@@ -269,7 +270,7 @@ export default function Mint() {
         {
             value: "text/html",
             label: "HTML",
-            icon: "<>",
+            icon: "<Fragment>",
             description: "Rich content with CSS (no scripts)",
             color: "amber",
         },
@@ -521,12 +522,12 @@ export default function Mint() {
 
 export function Head() {
     return (
-        <>
+        <Fragment>
             <title>Mint - zang</title>
             <meta
                 name="description"
                 content="Create your text-based NFT on Base. Write poetry, prose, code, or HTML art."
             />
-        </>
+        </Fragment>
     );
 }
