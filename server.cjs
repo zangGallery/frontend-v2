@@ -589,58 +589,32 @@ async function syncAllEvents() {
     try {
         const syncKey = "global_events";
 
-        // Check if we need to do a one-time historical sync for marketplace events
-        const marketplaceEventsCheck = await pool.query(
-            "SELECT COUNT(*) as count FROM events WHERE event_type IN ('TokenListed', 'TokenDelisted', 'TokenPurchased')"
-        );
-        const hasMarketplaceEvents = Number(marketplaceEventsCheck.rows[0].count) > 0;
-
-        // Check for historical sync status (separate key to not conflict with production)
-        const historicalSyncKey = "historical_marketplace_sync";
-        const historicalSyncResult = await pool.query(
-            "SELECT last_block FROM sync_status WHERE key = $1",
-            [historicalSyncKey],
-        );
-        const historicalLastBlock = historicalSyncResult.rows.length > 0
-            ? Number(historicalSyncResult.rows[0].last_block)
-            : null;
-
-        // Get last synced block for regular sync
+        // Get last synced block
         const syncResult = await pool.query(
             "SELECT last_block FROM sync_status WHERE key = $1",
             [syncKey],
         );
 
         const currentBlock = Number(await publicClient.getBlockNumber());
-
-        let lastSyncedBlock;
-        let isHistoricalSync = false;
-        let effectiveSyncKey = syncKey;
-
-        if (!hasMarketplaceEvents || (historicalLastBlock !== null && historicalLastBlock < currentBlock - 10000)) {
-            // Need historical sync - either no events yet, or historical sync is in progress
-            isHistoricalSync = true;
-            effectiveSyncKey = historicalSyncKey;
-            lastSyncedBlock = historicalLastBlock !== null ? historicalLastBlock : FIRST_MARKETPLACE_BLOCK - 1;
-            console.log("Historical marketplace sync mode - syncing from block", lastSyncedBlock + 1);
-        } else if (syncResult.rows.length > 0) {
-            lastSyncedBlock = Number(syncResult.rows[0].last_block);
-        } else {
-            lastSyncedBlock = FIRST_ZANG_BLOCK - 1;
-        }
-
-        // For historical syncs, limit batch size to avoid RPC limits
-        const MAX_BLOCK_RANGE = isHistoricalSync ? 2000000 : currentBlock - lastSyncedBlock;
-        const toBlockNum = Math.min(lastSyncedBlock + MAX_BLOCK_RANGE, currentBlock);
-        if (isHistoricalSync) {
-            console.log(`Historical sync: blocks ${lastSyncedBlock + 1} to ${toBlockNum} (${toBlockNum - lastSyncedBlock} blocks)`);
-        }
+        const lastSyncedBlock = syncResult.rows.length > 0
+            ? Number(syncResult.rows[0].last_block)
+            : FIRST_ZANG_BLOCK - 1;
 
         // Only sync if there are new blocks
         if (currentBlock <= lastSyncedBlock) {
             lastSyncBlock = lastSyncedBlock;
             lastSyncTime = lastSyncTime || new Date();
             return { synced: false, lastBlock: lastSyncedBlock };
+        }
+
+        // Limit batch size to avoid RPC limits (500k blocks max)
+        const MAX_BLOCK_RANGE = 500000;
+        const toBlockNum = Math.min(lastSyncedBlock + MAX_BLOCK_RANGE, currentBlock);
+        const blocksToSync = toBlockNum - lastSyncedBlock;
+        const isCatchingUp = blocksToSync >= MAX_BLOCK_RANGE;
+
+        if (isCatchingUp) {
+            console.log(`Catching up: blocks ${lastSyncedBlock + 1} to ${toBlockNum} (${blocksToSync} blocks)`);
         }
 
         const fromBlock = BigInt(lastSyncedBlock + 1);
@@ -701,6 +675,9 @@ async function syncAllEvents() {
                     }),
             ]);
 
+        // Debug: log event counts by type
+        console.log(`Event counts: TransferSingle=${transferEvents.length}, TokenListed=${listEvents.length}, TokenDelisted=${delistEvents.length}, TokenPurchased=${purchaseEvents.length}`);
+
         // Prepare all events with their token IDs
         const allEvents = [
             ...transferEvents.map((e) => ({
@@ -752,7 +729,7 @@ async function syncAllEvents() {
         await pool.query(
             `INSERT INTO sync_status (key, last_block) VALUES ($1, $2)
              ON CONFLICT (key) DO UPDATE SET last_block = $2, updated_at = NOW()`,
-            [effectiveSyncKey, toBlockNum],
+            [syncKey, toBlockNum],
         );
 
         console.log(
@@ -780,8 +757,8 @@ async function syncAllEvents() {
             synced: true,
             eventsCount: allEvents.length,
             lastBlock: toBlockNum,
-            isHistoricalSync,
-            needsMoreSync: isHistoricalSync && toBlockNum < currentBlock,
+            isCatchingUp,
+            needsMoreSync: isCatchingUp && toBlockNum < currentBlock,
         };
     } finally {
         isSyncing = false;
@@ -1242,6 +1219,43 @@ app.post("/api/sync/force", async (req, res) => {
     } catch (error) {
         console.error("Force sync failed:", error.message);
         res.status(500).json({ error: "Sync failed" });
+    }
+});
+
+// API: Full reset and resync from beginning
+app.post("/api/sync/reset", async (req, res) => {
+    try {
+        console.log("Full sync reset requested...");
+
+        // Clear all events and sync status
+        await pool.query("DELETE FROM events");
+        await pool.query("DELETE FROM sync_status");
+        await pool.query("DELETE FROM token_stats");
+        await pool.query("DELETE FROM authors");
+
+        // Reset in-memory state
+        lastSyncBlock = 0;
+        lastSyncTime = null;
+        isSyncing = false;
+
+        console.log("All sync data cleared. Starting fresh sync...");
+
+        // Run initial sync
+        const result = await syncAllEvents();
+
+        if (result.synced) {
+            await updateTokenStats().catch(() => {});
+            await updateAuthorStats().catch(() => {});
+        }
+
+        res.json({
+            reset: true,
+            ...result,
+            message: "Sync reset complete. Will continue syncing in background.",
+        });
+    } catch (error) {
+        console.error("Sync reset failed:", error.message);
+        res.status(500).json({ error: "Reset failed", message: error.message });
     }
 });
 
