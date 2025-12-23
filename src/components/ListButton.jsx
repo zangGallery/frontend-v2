@@ -67,11 +67,6 @@ export default function ListButton({
         }
     };
 
-    // Don't show button if nothing available to list
-    if (!userAvailableAmount || userAvailableAmount <= 0) {
-        return null;
-    }
-
     return (
         <Fragment>
             <button

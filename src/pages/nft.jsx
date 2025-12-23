@@ -965,25 +965,34 @@ export default function NFTPage() {
                                                 )}
                                         </div>
 
-                                        {/* Primary action - List for Sale */}
-                                        <ListButton
-                                            id={id}
-                                            userBalance={userBalance()}
-                                            userAvailableAmount={userAvailableAmount()}
-                                            onUpdate={onUpdate}
-                                            walletAddress={walletAddress}
-                                            fullWidth
-                                        />
+                                        {/* Actions - only show if user has available (unlisted) copies */}
+                                        {userAvailableAmount() > 0 ? (
+                                            <>
+                                                {/* Primary action - List for Sale */}
+                                                <ListButton
+                                                    id={id}
+                                                    userBalance={userBalance()}
+                                                    userAvailableAmount={userAvailableAmount()}
+                                                    onUpdate={onUpdate}
+                                                    walletAddress={walletAddress}
+                                                    fullWidth
+                                                />
 
-                                        {/* Secondary action - Transfer */}
-                                        <TransferButton
-                                            id={id}
-                                            walletAddress={walletAddress}
-                                            balance={userBalance()}
-                                            availableAmount={userAvailableAmount()}
-                                            onUpdate={onUpdate}
-                                            secondary
-                                        />
+                                                {/* Secondary action - Transfer */}
+                                                <TransferButton
+                                                    id={id}
+                                                    walletAddress={walletAddress}
+                                                    balance={userBalance()}
+                                                    availableAmount={userAvailableAmount()}
+                                                    onUpdate={onUpdate}
+                                                    secondary
+                                                />
+                                            </>
+                                        ) : userAvailableAmount() === 0 ? (
+                                            <div className="text-center py-3 text-ink-400 text-sm">
+                                                All copies are listed for sale
+                                            </div>
+                                        ) : null}
 
                                         {/* User's active listings */}
                                         {listingGroups?.find(
