@@ -75,11 +75,16 @@ export default function SyncStatus({ meta, onRefresh, compact = false }) {
         unknown: "bg-ink-500",
     };
 
+    // Show catching up state if sync progress is available
+    const isCatchingUp = meta.isCatchingUp || (meta.syncProgress !== undefined && meta.syncProgress < 99);
+
     if (compact) {
         return (
             <div className="flex items-center justify-center gap-2 text-xs text-ink-500">
-                <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? "bg-blue-500 animate-pulse" : dotColors[staleness]}`} />
-                <span>{isSyncing ? "Syncing..." : relativeTime}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${isSyncing || isCatchingUp ? "bg-blue-500 animate-pulse" : dotColors[staleness]}`} />
+                <span>
+                    {isSyncing ? "Syncing..." : isCatchingUp ? `Syncing ${meta.syncProgress}%` : relativeTime}
+                </span>
             </div>
         );
     }
@@ -87,10 +92,19 @@ export default function SyncStatus({ meta, onRefresh, compact = false }) {
     return (
         <div className="flex items-center justify-between gap-4 px-3 py-2 bg-ink-900/30 rounded-lg border border-ink-800/50">
             <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${isSyncing ? "bg-blue-500 animate-pulse" : dotColors[staleness]}`} />
+                <span className={`w-2 h-2 rounded-full ${isSyncing || isCatchingUp ? "bg-blue-500 animate-pulse" : dotColors[staleness]}`} />
                 <span className="text-xs text-ink-400">
                     {isSyncing ? (
                         "Syncing blockchain data..."
+                    ) : isCatchingUp ? (
+                        <>
+                            Catching up... <span className="text-blue-400">{meta.syncProgress}%</span>
+                            {meta.blocksRemaining && (
+                                <span className="text-ink-600 ml-1">
+                                    ({Math.round(meta.blocksRemaining / 1000)}k blocks remaining)
+                                </span>
+                            )}
+                        </>
                     ) : (
                         <>
                             Updated <span className={statusColors[staleness]}>{relativeTime}</span>
@@ -104,7 +118,7 @@ export default function SyncStatus({ meta, onRefresh, compact = false }) {
                 </span>
             </div>
 
-            {onRefresh && !isSyncing && staleness !== "fresh" && (
+            {onRefresh && !isSyncing && !isCatchingUp && staleness !== "fresh" && (
                 <button
                     onClick={handleRefresh}
                     className="flex items-center gap-1 text-xs text-ink-400 hover:text-ink-200 transition-colors"

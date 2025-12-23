@@ -1026,10 +1026,26 @@ app.get("/api/sync/status", async (req, res) => {
             "SELECT COUNT(*) as count FROM events",
         );
         const nftCount = await pool.query("SELECT COUNT(*) as count FROM nfts");
+
+        // Calculate sync progress
+        const currentBlock = Number(await publicClient.getBlockNumber());
+        const globalSync = result.rows.find((r) => r.key === "global_events");
+        const syncedBlock = globalSync ? Number(globalSync.last_block) : 0;
+        const blocksRemaining = Math.max(0, currentBlock - syncedBlock);
+        const isCatchingUp = blocksRemaining > 1000;
+        const syncProgress = syncedBlock > 0
+            ? Math.round((syncedBlock / currentBlock) * 100)
+            : 0;
+
         res.json({
             syncStatus: result.rows,
             totalEvents: parseInt(eventCount.rows[0].count, 10),
             totalNfts: parseInt(nftCount.rows[0].count, 10),
+            currentBlock,
+            syncedBlock,
+            blocksRemaining,
+            isCatchingUp,
+            syncProgress,
         });
     } catch (error) {
         res.status(500).json({ error: "Failed to get status" });
@@ -1063,6 +1079,23 @@ app.get("/api/events/:tokenId", async (req, res) => {
 app.get("/api/activity", async (req, res) => {
     try {
         const events = await getRecentEvents();
+
+        // Calculate sync progress
+        let syncProgress = 100;
+        let blocksRemaining = 0;
+        let isCatchingUp = false;
+
+        try {
+            const currentBlock = Number(await publicClient.getBlockNumber());
+            blocksRemaining = Math.max(0, currentBlock - lastSyncBlock);
+            isCatchingUp = blocksRemaining > 1000;
+            syncProgress = lastSyncBlock > 0
+                ? Math.round((lastSyncBlock / currentBlock) * 100)
+                : 0;
+        } catch (e) {
+            // Ignore RPC errors for sync status
+        }
+
         // Include freshness metadata so frontend knows how current data is
         res.json({
             events,
@@ -1071,6 +1104,9 @@ app.get("/api/activity", async (req, res) => {
                 lastSyncTime: lastSyncTime?.toISOString() || null,
                 isSyncing,
                 syncIntervalSeconds: SYNC_INTERVAL_MS / 1000,
+                syncProgress,
+                blocksRemaining,
+                isCatchingUp,
             },
         });
     } catch (error) {
