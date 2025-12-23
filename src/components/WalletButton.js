@@ -143,8 +143,10 @@ export default function WalletButton() {
             const _ensAddress = await ensProvider.lookupAddress(address);
             setEnsAddress(_ensAddress);
 
-            const _ensAvatar = await ensProvider.getAvatar(_ensAddress);
-            setEnsAvatar(_ensAvatar);
+            if (_ensAddress) {
+                const _ensAvatar = await ensProvider.getAvatar(_ensAddress);
+                setEnsAvatar(_ensAvatar);
+            }
         } catch (e) {
             console.log(e);
         }
