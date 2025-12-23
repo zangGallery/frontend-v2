@@ -53,7 +53,17 @@ export default function TransferButton({
         setStandardError(null);
 
         if (to.includes(".eth")) {
-            to = ensProvider.resolveName(to);
+            try {
+                const resolvedAddress = await ensProvider.resolveName(to);
+                if (!resolvedAddress) {
+                    setStandardError("Could not resolve ENS name.");
+                    return;
+                }
+                to = resolvedAddress;
+            } catch (e) {
+                setStandardError("ENS resolution failed: " + e.message);
+                return;
+            }
         }
 
         const contract = new ethers.Contract(

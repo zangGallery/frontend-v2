@@ -18,7 +18,12 @@ const useEns = () => {
     const updateEns = async (address) => {
         setQueries([...queries, address]);
 
-        const ensAddress = await ensProvider.lookupAddress(address);
+        let ensAddress = null;
+        try {
+            ensAddress = await ensProvider.lookupAddress(address);
+        } catch (e) {
+            console.warn("ENS lookup failed for", address, e.message);
+        }
 
         setEnsInfo((currentEnsInfo) => ({
             ...currentEnsInfo,

@@ -9,7 +9,7 @@ import { Header } from "../components";
 import { useRecoilState } from "recoil";
 import { formatError, standardErrorState } from "../common/error";
 import StandardErrorDisplay from "../components/StandardErrorDisplay";
-import { navigate } from "gatsby-link";
+import { navigate, Link } from "gatsby";
 import { formatEther } from "@ethersproject/units";
 
 import "../styles/tailwind.css";
@@ -138,12 +138,15 @@ function LiveFeed({ events }) {
     return (
         <div className="flex items-center justify-center gap-2 text-sm text-ink-400">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="transition-opacity duration-300">
+            <Link
+                to={`/nft?id=${event.id}`}
+                className="transition-opacity duration-300 hover:text-ink-200"
+            >
                 {getEventIcon(event)}{" "}
                 <span className="text-ink-500">#{event.id}</span>{" "}
                 <span className="text-ink-200 font-medium">{event.title}</span>{" "}
                 · {getEventText(event)}
-            </span>
+            </Link>
         </div>
     );
 }
