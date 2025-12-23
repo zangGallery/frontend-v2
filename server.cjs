@@ -1222,8 +1222,16 @@ app.post("/api/sync/force", async (req, res) => {
     }
 });
 
-// API: Full reset and resync from beginning
+// API: Full reset and resync from beginning (protected - requires ADMIN_SECRET)
 app.post("/api/sync/reset", async (req, res) => {
+    // Require admin secret for destructive operation
+    const adminSecret = process.env.ADMIN_SECRET;
+    const providedSecret = req.headers["x-admin-secret"] || req.query.secret;
+
+    if (!adminSecret || providedSecret !== adminSecret) {
+        return res.status(403).json({ error: "Unauthorized" });
+    }
+
     try {
         console.log("Full sync reset requested...");
 
