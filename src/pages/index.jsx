@@ -256,16 +256,6 @@ export default function Home() {
                     contentType: nftData[e.id]?.contentType || "text",
                 }));
                 setRecentEvents(eventsWithData);
-
-                // Calculate total volume from purchase events in the full activity
-                const volume = rawEvents
-                    .filter(e => e.event_type === "TokenPurchased")
-                    .reduce((sum, e) => {
-                        const price = BigInt(e.data._price || 0);
-                        const amount = BigInt(e.data._amount || 1);
-                        return sum + parseFloat(formatEther(price * amount));
-                    }, 0);
-                setTotalVolume(volume);
             } catch (e) {
                 console.error("Error fetching activity:", e);
             }
@@ -274,7 +264,7 @@ export default function Home() {
         fetchRecentEvents();
     }, []);
 
-    // Fetch unique artists count from DB
+    // Fetch stats (unique artists, total volume) from DB
     useEffect(() => {
         const fetchStats = async () => {
             try {
@@ -283,6 +273,9 @@ export default function Home() {
                     const data = await response.json();
                     if (data.uniqueArtists > 0) {
                         setUniqueArtists(data.uniqueArtists);
+                    }
+                    if (data.totalVolumeEth !== undefined) {
+                        setTotalVolume(data.totalVolumeEth);
                     }
                 }
             } catch {
@@ -509,7 +502,7 @@ export default function Home() {
                                         <span className="text-ink-400">Ξ</span>
                                     </div>
                                     <div className="text-ink-500 text-sm">
-                                        volume (recent)
+                                        total volume
                                     </div>
                                 </div>
                             )}

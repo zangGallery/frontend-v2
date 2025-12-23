@@ -1125,10 +1125,25 @@ app.get("/api/stats", async (req, res) => {
         const eventCount = await pool.query(
             "SELECT COUNT(*) as count FROM events",
         );
+
+        // Calculate total volume from all purchase events
+        const volumeResult = await pool.query(
+            "SELECT data FROM events WHERE event_type = 'TokenPurchased'",
+        );
+        let totalVolumeWei = BigInt(0);
+        for (const row of volumeResult.rows) {
+            const price = BigInt(row.data._price || 0);
+            const amount = BigInt(row.data._amount || 1);
+            totalVolumeWei += price * amount;
+        }
+        // Convert to ETH string (18 decimals)
+        const totalVolumeEth = Number(totalVolumeWei) / 1e18;
+
         res.json({
             uniqueArtists: parseInt(result.rows[0].artists, 10),
             totalNfts: parseInt(nftCount.rows[0].count, 10),
             totalEvents: parseInt(eventCount.rows[0].count, 10),
+            totalVolumeEth,
         });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch stats" });
