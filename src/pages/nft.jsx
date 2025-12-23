@@ -41,6 +41,19 @@ import NFTHistory from "../components/NFTHistory";
 import Address from "../components/Address";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 
+import hljs from "highlight.js/lib/core";
+import html from "highlight.js/lib/languages/xml";
+import css from "highlight.js/lib/languages/css";
+import javascript from "highlight.js/lib/languages/javascript";
+import markdown from "highlight.js/lib/languages/markdown";
+import "highlight.js/styles/github-dark.css";
+
+hljs.registerLanguage("html", html);
+hljs.registerLanguage("xml", html);
+hljs.registerLanguage("css", css);
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("markdown", markdown);
+
 const burnedIdsState = atom({
     key: "burnedIds",
     default: [],
@@ -596,9 +609,23 @@ export default function NFTPage() {
     useEffect(() => {
         const updateId = updateTracker[0];
         if (updateId === id) {
-            queryListings();
-            queryTotalSupply();
-            queryRoyaltyInfo();
+            // Force sync to pick up the new event, then refresh everything
+            fetch("/api/sync/force", { method: "POST" })
+                .then(() => {
+                    queryListings();
+                    queryTotalSupply();
+                    queryRoyaltyInfo();
+                    // Re-fetch events to show the new history entry
+                    if (tokenAuthor) {
+                        queryBalances(tokenAuthor);
+                    }
+                })
+                .catch(() => {
+                    // Still refresh even if sync fails
+                    queryListings();
+                    queryTotalSupply();
+                    queryRoyaltyInfo();
+                });
         }
     }, [updateTracker]);
 
@@ -765,41 +792,17 @@ export default function NFTPage() {
                                         {tokenType &&
                                         (tokenContent ||
                                             tokenContent === "") ? (
-                                            showSource &&
-                                            typeof window !== "undefined" ? (
-                                                (() => {
-                                                    const AceEditor =
-                                                        require("react-ace").default;
-                                                    require("ace-builds/src-noconflict/mode-html");
-                                                    require("ace-builds/src-noconflict/mode-markdown");
-                                                    require("ace-builds/src-noconflict/theme-monokai");
-                                                    return (
-                                                        <AceEditor
-                                                            mode={
-                                                                tokenType ===
-                                                                "text/html"
-                                                                    ? "html"
-                                                                    : "markdown"
-                                                            }
-                                                            theme="monokai"
-                                                            value={tokenContent}
-                                                            name="source-viewer"
-                                                            readOnly={true}
-                                                            editorProps={{
-                                                                $blockScrolling: false,
-                                                            }}
-                                                            setOptions={{
-                                                                showPrintMargin: false,
-                                                                showGutter: true,
-                                                                highlightActiveLine: false,
-                                                                highlightGutterLine: false,
-                                                            }}
-                                                            width="100%"
-                                                            height="400px"
-                                                            fontSize={14}
-                                                        />
-                                                    );
-                                                })()
+                                            showSource ? (
+                                                <pre className="bg-ink-950 rounded-lg p-4 overflow-auto max-h-[400px] text-sm border border-ink-800">
+                                                    <code
+                                                        className={`hljs language-${tokenType === "text/html" ? "html" : "markdown"}`}
+                                                        dangerouslySetInnerHTML={{
+                                                            __html: hljs.highlight(tokenContent, {
+                                                                language: tokenType === "text/html" ? "html" : "markdown",
+                                                            }).value,
+                                                        }}
+                                                    />
+                                                </pre>
                                             ) : tokenType === "text/html" ? (
                                                 <HTMLViewer
                                                     source={tokenContent}

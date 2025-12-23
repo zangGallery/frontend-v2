@@ -1,0 +1,172 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - navigation [ref=e8]:
+        - generic [ref=e9]:
+          - 'link ".zang{" [ref=e11] [cursor=pointer]':
+            - /url: /
+            - generic [ref=e12]: ".zang{"
+          - generic [ref=e13]:
+            - link "Home" [ref=e14] [cursor=pointer]:
+              - /url: /
+            - link "Mint" [ref=e15] [cursor=pointer]:
+              - /url: /mint
+            - link "Activity" [ref=e16] [cursor=pointer]:
+              - /url: /activity
+          - button "Connect" [ref=e19] [cursor=pointer]:
+            - img [ref=e20]
+            - generic [ref=e22]: Connect
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - button "Previous" [disabled] [ref=e25]:
+            - img [ref=e26]
+            - generic [ref=e28]: Previous
+          - generic [ref=e29]: "#1"
+          - button "Next" [ref=e30] [cursor=pointer]:
+            - generic [ref=e31]: Next
+            - img [ref=e32]
+        - generic [ref=e34]:
+          - generic [ref=e36]:
+            - button "View Source" [ref=e38] [cursor=pointer]:
+              - img [ref=e39]
+              - text: View Source
+            - iframe [ref=e42]:
+              - generic [ref=f1e2]: ".zang{ .zang{ .zang{"
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - heading "Hello Base" [level=1] [ref=e45]
+              - paragraph [ref=e46]:
+                - text: by
+                - link "0xCC333BfF...F5772D53" [ref=e48] [cursor=pointer]:
+                  - /url: https://basescan.org/address/0xCC333BfF4695a2fFf5B79DBeA9890B7dF5772D53
+              - generic [ref=e49]:
+                - generic [ref=e50]:
+                  - generic [ref=e51]: <>
+                  - text: HTML
+                - generic [ref=e52]: "Edition: 100"
+              - paragraph [ref=e53]: Onchain text NFTs now live on Base
+              - paragraph [ref=e55]: 10.00% royalty to the author
+            - generic [ref=e57]:
+              - heading "Marketplace" [level=4] [ref=e58]
+              - generic [ref=e60]:
+                - generic [ref=e61]:
+                  - paragraph [ref=e62]: Seller
+                  - paragraph [ref=e63]:
+                    - link "0xCC333BfF...F5772D53" [ref=e65] [cursor=pointer]:
+                      - /url: https://basescan.org/address/0xCC333BfF4695a2fFf5B79DBeA9890B7dF5772D53
+                - generic [ref=e68]:
+                  - generic [ref=e69]:
+                    - generic [ref=e70]:
+                      - paragraph [ref=e71]: Price
+                      - paragraph [ref=e72]: 0.001 ETH
+                      - paragraph [ref=e73]: $2.97
+                    - generic [ref=e74]:
+                      - paragraph [ref=e75]: Amount
+                      - paragraph [ref=e76]: "85"
+                  - button "Connect wallet to buy" [disabled] [ref=e77]
+            - generic [ref=e78]:
+              - heading "Owners" [level=3] [ref=e80]
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - link "0xCC333BfF...F5772D53" [ref=e86] [cursor=pointer]:
+                    - /url: https://basescan.org/address/0xCC333BfF4695a2fFf5B79DBeA9890B7dF5772D53
+                  - generic [ref=e87]: "94"
+                - generic [ref=e88]:
+                  - link "donnoh.eth" [ref=e91] [cursor=pointer]:
+                    - /url: https://basescan.org/address/0x33D66941465ac776C38096cb1bc496C673aE7390
+                  - generic [ref=e92]: "1"
+                - generic [ref=e93]:
+                  - link "dogfacts.eth" [ref=e96] [cursor=pointer]:
+                    - /url: https://basescan.org/address/0x56C09cAF7A77d5d254dAe3438bB843A1FFd06aa2
+                  - generic [ref=e97]: "5"
+            - generic [ref=e98]:
+              - heading "History" [level=3] [ref=e100]
+              - generic [ref=e102]:
+                - generic [ref=e105]:
+                  - generic [ref=e106]:
+                    - generic [ref=e108]: transfer
+                    - generic [ref=e109]: 2 years ago
+                  - generic [ref=e110]:
+                    - generic [ref=e111]:
+                      - generic [ref=e112]: FROM
+                      - link "0xCC333BfF...F5772D53" [ref=e114] [cursor=pointer]:
+                        - /url: https://basescan.org/address/0xCC333BfF4695a2fFf5B79DBeA9890B7dF5772D53
+                    - generic [ref=e115]:
+                      - generic [ref=e116]: TO
+                      - link "dogfacts.eth" [ref=e118] [cursor=pointer]:
+                        - /url: https://basescan.org/address/0x56C09cAF7A77d5d254dAe3438bB843A1FFd06aa2
+                    - generic [ref=e119]:
+                      - generic [ref=e120]: AMOUNT
+                      - generic [ref=e121]: "5"
+                  - link "View transaction →" [ref=e123] [cursor=pointer]:
+                    - /url: https://basescan.org/tx/0xddc743e59772a820d78e54f03b72dbf96863f7fa177138859dae959ad3a80aa4
+                - generic [ref=e126]:
+                  - generic [ref=e127]:
+                    - generic [ref=e129]: transfer
+                    - generic [ref=e130]: 2 years ago
+                  - generic [ref=e131]:
+                    - generic [ref=e132]:
+                      - generic [ref=e133]: FROM
+                      - link "0xCC333BfF...F5772D53" [ref=e135] [cursor=pointer]:
+                        - /url: https://basescan.org/address/0xCC333BfF4695a2fFf5B79DBeA9890B7dF5772D53
+                    - generic [ref=e136]:
+                      - generic [ref=e137]: TO
+                      - link "donnoh.eth" [ref=e139] [cursor=pointer]:
+                        - /url: https://basescan.org/address/0x33D66941465ac776C38096cb1bc496C673aE7390
+                    - generic [ref=e140]:
+                      - generic [ref=e141]: AMOUNT
+                      - generic [ref=e142]: "1"
+                  - link "View transaction →" [ref=e144] [cursor=pointer]:
+                    - /url: https://basescan.org/tx/0x2063bdd2b594e0b9c5d07ec7cec41d5b2b318c4a68ca2161c16ea4eef4c8f1f0
+                - generic [ref=e147]:
+                  - generic [ref=e148]:
+                    - generic [ref=e150]: mint
+                    - generic [ref=e151]: 2 years ago
+                  - generic [ref=e152]:
+                    - generic [ref=e153]:
+                      - generic [ref=e154]: FROM
+                      - link "0x00000000...00000000" [ref=e156] [cursor=pointer]:
+                        - /url: https://basescan.org/address/0x0000000000000000000000000000000000000000
+                    - generic [ref=e157]:
+                      - generic [ref=e158]: TO
+                      - link "0xCC333BfF...F5772D53" [ref=e160] [cursor=pointer]:
+                        - /url: https://basescan.org/address/0xCC333BfF4695a2fFf5B79DBeA9890B7dF5772D53
+                    - generic [ref=e161]:
+                      - generic [ref=e162]: AMOUNT
+                      - generic [ref=e163]: "100"
+                  - link "View transaction →" [ref=e165] [cursor=pointer]:
+                    - /url: https://basescan.org/tx/0x49d7381bc33a8be90afcebf49feee695be6916e8db19688b2415814de5bf32dd
+  - region "Notifications alt+T"
+  - contentinfo [ref=e166]:
+    - generic [ref=e167]:
+      - generic [ref=e168]:
+        - generic [ref=e169]:
+          - generic [ref=e170]: ".zang{"
+          - paragraph [ref=e171]:
+            - text: Text-based NFTs on Base.
+            - text: By artists, for artists.
+          - paragraph [ref=e172]: "Platform fee: 5%"
+        - generic [ref=e173]:
+          - heading "Contact" [level=4] [ref=e174]
+          - link "team@zang.gallery" [ref=e175] [cursor=pointer]:
+            - /url: mailto:team@zang.gallery
+        - generic [ref=e176]:
+          - heading "Community" [level=4] [ref=e177]
+          - generic [ref=e178]:
+            - link "Twitter" [ref=e179] [cursor=pointer]:
+              - /url: https://twitter.com/zanggallery
+              - img [ref=e180]
+              - text: Twitter
+            - link "GitHub" [ref=e182] [cursor=pointer]:
+              - /url: https://github.com/zanggallery
+              - img [ref=e183]
+              - text: GitHub
+            - link "Discord" [ref=e185] [cursor=pointer]:
+              - /url: https://discord.gg/jnpCz9R3gf
+              - img [ref=e186]
+              - text: Discord
+      - paragraph [ref=e189]: Built on Base
+```

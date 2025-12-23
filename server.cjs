@@ -587,17 +587,52 @@ async function syncAllEvents() {
     try {
         const syncKey = "global_events";
 
-        // Get last synced block
+        // Check if we need to do a one-time historical sync for marketplace events
+        const marketplaceEventsCheck = await pool.query(
+            "SELECT COUNT(*) as count FROM events WHERE event_type IN ('TokenListed', 'TokenDelisted', 'TokenPurchased')"
+        );
+        const hasMarketplaceEvents = Number(marketplaceEventsCheck.rows[0].count) > 0;
+
+        // Check for historical sync status (separate key to not conflict with production)
+        const historicalSyncKey = "historical_marketplace_sync";
+        const historicalSyncResult = await pool.query(
+            "SELECT last_block FROM sync_status WHERE key = $1",
+            [historicalSyncKey],
+        );
+        const historicalLastBlock = historicalSyncResult.rows.length > 0
+            ? Number(historicalSyncResult.rows[0].last_block)
+            : null;
+
+        // Get last synced block for regular sync
         const syncResult = await pool.query(
             "SELECT last_block FROM sync_status WHERE key = $1",
             [syncKey],
         );
-        const lastSyncedBlock =
-            syncResult.rows.length > 0
-                ? Number(syncResult.rows[0].last_block)
-                : FIRST_ZANG_BLOCK - 1;
 
         const currentBlock = Number(await publicClient.getBlockNumber());
+
+        let lastSyncedBlock;
+        let isHistoricalSync = false;
+        let effectiveSyncKey = syncKey;
+
+        if (!hasMarketplaceEvents || (historicalLastBlock !== null && historicalLastBlock < currentBlock - 10000)) {
+            // Need historical sync - either no events yet, or historical sync is in progress
+            isHistoricalSync = true;
+            effectiveSyncKey = historicalSyncKey;
+            lastSyncedBlock = historicalLastBlock !== null ? historicalLastBlock : FIRST_MARKETPLACE_BLOCK - 1;
+            console.log("Historical marketplace sync mode - syncing from block", lastSyncedBlock + 1);
+        } else if (syncResult.rows.length > 0) {
+            lastSyncedBlock = Number(syncResult.rows[0].last_block);
+        } else {
+            lastSyncedBlock = FIRST_ZANG_BLOCK - 1;
+        }
+
+        // For historical syncs, limit batch size to avoid RPC limits
+        const MAX_BLOCK_RANGE = isHistoricalSync ? 2000000 : currentBlock - lastSyncedBlock;
+        const toBlockNum = Math.min(lastSyncedBlock + MAX_BLOCK_RANGE, currentBlock);
+        if (isHistoricalSync) {
+            console.log(`Historical sync: blocks ${lastSyncedBlock + 1} to ${toBlockNum} (${toBlockNum - lastSyncedBlock} blocks)`);
+        }
 
         // Only sync if there are new blocks
         if (currentBlock <= lastSyncedBlock) {
@@ -607,7 +642,7 @@ async function syncAllEvents() {
         }
 
         const fromBlock = BigInt(lastSyncedBlock + 1);
-        const toBlock = BigInt(currentBlock);
+        const toBlock = BigInt(toBlockNum);
 
         console.log(`Syncing events from block ${fromBlock} to ${toBlock}...`);
 
@@ -715,15 +750,15 @@ async function syncAllEvents() {
         await pool.query(
             `INSERT INTO sync_status (key, last_block) VALUES ($1, $2)
              ON CONFLICT (key) DO UPDATE SET last_block = $2, updated_at = NOW()`,
-            [syncKey, currentBlock],
+            [effectiveSyncKey, toBlockNum],
         );
 
         console.log(
-            `Synced ${allEvents.length} events up to block ${currentBlock}`,
+            `Synced ${allEvents.length} events up to block ${toBlockNum}`,
         );
 
         // Update global sync state
-        lastSyncBlock = currentBlock;
+        lastSyncBlock = toBlockNum;
         lastSyncTime = new Date();
 
         // Emit new events via WebSocket
@@ -742,7 +777,9 @@ async function syncAllEvents() {
         return {
             synced: true,
             eventsCount: allEvents.length,
-            lastBlock: currentBlock,
+            lastBlock: toBlockNum,
+            isHistoricalSync,
+            needsMoreSync: isHistoricalSync && toBlockNum < currentBlock,
         };
     } finally {
         isSyncing = false;
@@ -1276,9 +1313,10 @@ app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-// Periodic background sync (runs every 30 seconds)
+// Periodic background sync
 let syncInterval = null;
-const SYNC_INTERVAL_MS = 30000; // 30 seconds
+const SYNC_INTERVAL_MS = 30000; // 30 seconds for normal sync
+const HISTORICAL_SYNC_INTERVAL_MS = 5000; // 5 seconds during historical sync
 
 async function startBackgroundSync() {
     // Initial sync
@@ -1315,8 +1353,8 @@ async function startBackgroundSync() {
         console.error("Initial sync failed:", err.message);
     }
 
-    // Start periodic sync
-    syncInterval = setInterval(async () => {
+    // Start periodic sync with dynamic interval
+    const runSync = async () => {
         try {
             const result = await syncAllEvents();
             if (result.eventsCount > 0) {
@@ -1327,12 +1365,17 @@ async function startBackgroundSync() {
                 await updateTokenStats().catch((e) => {});
                 await updateAuthorStats().catch((e) => {});
             }
+            // Use shorter interval during historical sync
+            const nextInterval = result.needsMoreSync ? HISTORICAL_SYNC_INTERVAL_MS : SYNC_INTERVAL_MS;
+            syncInterval = setTimeout(runSync, nextInterval);
         } catch (err) {
             console.error("Background sync error:", err.message);
+            syncInterval = setTimeout(runSync, SYNC_INTERVAL_MS);
         }
-    }, SYNC_INTERVAL_MS);
+    };
+    syncInterval = setTimeout(runSync, SYNC_INTERVAL_MS);
 
-    console.log(`Background sync started (every ${SYNC_INTERVAL_MS / 1000}s)`);
+    console.log("Background sync started (30s normal, 5s during historical catch-up)");
 }
 
 // Start server

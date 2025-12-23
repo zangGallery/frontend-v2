@@ -77,7 +77,7 @@ export default function SyncStatus({ meta, onRefresh, compact = false }) {
 
     if (compact) {
         return (
-            <div className="flex items-center gap-2 text-xs text-ink-500">
+            <div className="flex items-center justify-center gap-2 text-xs text-ink-500">
                 <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? "bg-blue-500 animate-pulse" : dotColors[staleness]}`} />
                 <span>{isSyncing ? "Syncing..." : relativeTime}</span>
             </div>

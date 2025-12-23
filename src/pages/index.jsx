@@ -292,39 +292,6 @@ export default function Home() {
         fetchStats();
     }, []);
 
-    // Force sync and refresh activity
-    const handleForceSync = useCallback(async () => {
-        try {
-            // Force sync first
-            await fetch("/api/sync/force", { method: "POST" });
-            // Then refetch activity
-            const response = await fetch("/api/activity");
-            if (response.ok) {
-                const { events: rawEvents, _meta } = await response.json();
-                setActivityMeta(_meta);
-                // Reprocess events (simplified for refresh)
-                const events = rawEvents.slice(0, 50).map((e) => {
-                    const data = e.data;
-                    let type = "transfer";
-                    let price = null;
-                    if (e.event_type === "TransferSingle" && data.from === "0x0000000000000000000000000000000000000000") {
-                        type = "mint";
-                    } else if (e.event_type === "TokenPurchased") {
-                        type = "purchase";
-                        price = formatEther(BigInt(data._price || 0));
-                    } else if (e.event_type === "TokenListed") {
-                        type = "list";
-                        price = formatEther(BigInt(data._price || 0));
-                    }
-                    return { type, id: e.token_id.toString(), blockNumber: Number(e.block_number), price };
-                }).filter(e => e.type !== "transfer").slice(0, 10);
-                setRecentEvents(events.map(e => ({ ...e, title: `#${e.id}`, contentType: "text" })));
-            }
-        } catch (e) {
-            console.error("Error forcing sync:", e);
-        }
-    }, []);
-
     // WebSocket connection status
     const isConnected = useSocketStatus();
 
@@ -549,17 +516,8 @@ export default function Home() {
                         </div>
 
                         {/* Live Feed */}
-                        <div className="pt-8 space-y-3">
+                        <div className="pt-8">
                             <LiveFeed events={recentEvents} />
-                            {activityMeta && (
-                                <div className="max-w-md mx-auto">
-                                    <SyncStatus
-                                        meta={activityMeta}
-                                        onRefresh={handleForceSync}
-                                        compact
-                                    />
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -583,10 +541,11 @@ export default function Home() {
                             Fresh from the creative minds
                         </p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-2 text-ink-600 text-sm font-mono">
-                        <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-ink-600"}`}></span>
-                        {isConnected ? "Live" : "Offline"}
-                    </div>
+                    {activityMeta && (
+                        <div className="hidden sm:block">
+                            <SyncStatus meta={activityMeta} compact />
+                        </div>
+                    )}
                 </div>
 
                 {/* NFT Grid */}
