@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
-import { cjsInterop } from "vite-plugin-cjs-interop";
 
 export default defineConfig({
     plugins: [
@@ -12,20 +11,6 @@ export default defineConfig({
                 Buffer: true,
                 process: true,
             },
-        }),
-        cjsInterop({
-            dependencies: [
-                "lodash",
-                "debug",
-                "semver",
-                "fast-safe-stringify",
-                "ms",
-                "detect-browser",
-                "pino-std-serializers",
-                "@walletconnect/jsonrpc-utils",
-                "@metamask/utils",
-                "query-string",
-            ],
         }),
     ],
     build: {
