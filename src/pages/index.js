@@ -235,14 +235,12 @@ export default function Home() {
                         price: formatEther(e.args._price.toString()),
                         blockNumber: e.blockNumber,
                     })),
-                    ...listEvents
-                        .slice(-10)
-                        .map((e) => ({
-                            type: "list",
-                            id: e.args._tokenId.toString(),
-                            price: formatEther(e.args._price.toString()),
-                            blockNumber: e.blockNumber,
-                        })),
+                    ...listEvents.slice(-10).map((e) => ({
+                        type: "list",
+                        id: e.args._tokenId.toString(),
+                        price: formatEther(e.args._price.toString()),
+                        blockNumber: e.blockNumber,
+                    })),
                 ]
                     .sort((a, b) => b.blockNumber - a.blockNumber)
                     .slice(0, 10);
