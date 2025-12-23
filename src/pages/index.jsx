@@ -498,7 +498,7 @@ export default function Home() {
                             {totalVolume !== null && totalVolume > 0 && (
                                 <div className="text-center">
                                     <div className="text-3xl font-mono text-white">
-                                        {totalVolume.toFixed(3)}{" "}
+                                        {totalVolume.toFixed(4)}{" "}
                                         <span className="text-ink-400">Ξ</span>
                                     </div>
                                     <div className="text-ink-500 text-sm">
