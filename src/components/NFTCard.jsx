@@ -265,6 +265,7 @@ export default function NFTCard({ id, prefetchedData }) {
                                     count={5}
                                     baseColor="#1c1c1e"
                                     highlightColor="#2a2a2e"
+                                    borderRadius={0}
                                 />
                             </div>
                         )}
@@ -295,7 +296,8 @@ export default function NFTCard({ id, prefetchedData }) {
                             )}
                         </h3>
                         {tokenAuthor && (
-                            <span className="text-ink-500 text-xs font-mono shrink-0">
+                            <span className="text-ink-500 text-xs shrink-0">
+                                <span className="text-ink-600">by </span>
                                 <Address
                                     address={tokenAuthor}
                                     shorten

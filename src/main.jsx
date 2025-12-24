@@ -45,7 +45,6 @@ import HomePage from "./pages/index";
 const NFTPage = lazy(() => import("./pages/nft"));
 const MintPage = lazy(() => import("./pages/mint"));
 const GalleryPage = lazy(() => import("./pages/gallery"));
-const CollectionPage = lazy(() => import("./pages/collection"));
 const ActivityPage = lazy(() => import("./pages/activity"));
 const ProfilePage = lazy(() => import("./pages/profile"));
 const BridgePage = lazy(() => import("./pages/bridge"));
@@ -73,7 +72,6 @@ function App() {
                                     <Route path="/nft" element={<NFTPage />} />
                                     <Route path="/mint" element={<MintPage />} />
                                     <Route path="/gallery" element={<GalleryPage />} />
-                                    <Route path="/collection" element={<CollectionPage />} />
                                     <Route path="/activity" element={<ActivityPage />} />
                                     <Route path="/profile" element={<ProfilePage />} />
                                     <Route path="/bridge" element={<BridgePage />} />

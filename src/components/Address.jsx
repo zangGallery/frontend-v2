@@ -1,15 +1,25 @@
 import { Link } from "react-router-dom";
 import { useEns } from "../common/ens";
+import { useProfiles } from "../common/profiles";
 import { shortenAddress } from "../common/utils";
 
 export default function Address({ address, shorten, nChar, disableLink }) {
     const { lookupEns } = useEns();
+    const { lookupProfile } = useProfiles();
+
+    // Priority: custom profile name > ENS/basename > shortened address
+    const profileName = lookupProfile(address);
+    const ensName = lookupEns(address);
     const displayText =
-        lookupEns(address) ||
+        profileName ||
+        ensName ||
         (shorten ? shortenAddress(address, nChar) : address);
 
+    // Use mono font only for addresses, not for names
+    const fontClass = profileName || ensName ? "font-sans" : "font-mono";
+
     return (
-        <span className="font-mono text-ink-300">
+        <span className={`${fontClass} text-ink-300`}>
             {!disableLink ? (
                 <Link
                     to={`/profile?address=${address}`}

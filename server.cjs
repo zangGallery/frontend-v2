@@ -4,7 +4,7 @@ const path = require("path");
 const compression = require("compression");
 const http = require("http");
 const { Server } = require("socket.io");
-const { createPublicClient, http: viemHttp } = require("viem");
+const { createPublicClient, http: viemHttp, verifyMessage } = require("viem");
 const { base } = require("viem/chains");
 const { Pool } = require("pg");
 
@@ -110,6 +110,17 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS leaderboards (
                 type VARCHAR(20) PRIMARY KEY,
                 data JSONB NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+
+            -- User profiles (custom display names, bio, social links)
+            CREATE TABLE IF NOT EXISTS profiles (
+                address VARCHAR(42) PRIMARY KEY,
+                name VARCHAR(50),
+                bio VARCHAR(160),
+                x_username VARCHAR(50),
+                instagram_username VARCHAR(50),
+                base_username VARCHAR(50),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
 
@@ -1370,6 +1381,7 @@ app.get("/api/author/:address", async (req, res) => {
         // Run all independent queries in parallel for speed
         const [
             authorResult,
+            profileResult,
             createdResult,
             receivedResult,
             sentResult,
@@ -1380,6 +1392,11 @@ app.get("/api/author/:address", async (req, res) => {
             // Get author stats from authors table
             pool.query(
                 "SELECT * FROM authors WHERE LOWER(address) = $1",
+                [address],
+            ),
+            // Get custom profile name
+            pool.query(
+                "SELECT name FROM profiles WHERE LOWER(address) = $1",
                 [address],
             ),
             // Get NFTs they created (with content and stats)
@@ -1480,6 +1497,7 @@ app.get("/api/author/:address", async (req, res) => {
 
         res.json({
             address,
+            profileName: profileResult.rows[0]?.name || null,
             stats: {
                 totalCreated: createdResult.rows.length,
                 totalCollected: collectedNfts.length,
@@ -1495,6 +1513,117 @@ app.get("/api/author/:address", async (req, res) => {
     } catch (error) {
         console.error("Failed to fetch profile:", error.message);
         res.status(500).json({ error: "Failed to fetch profile" });
+    }
+});
+
+// API: Get profile (custom display name, bio, social links)
+app.get("/api/profile/:address", async (req, res) => {
+    try {
+        const address = req.params.address.toLowerCase();
+        const result = await pool.query(
+            "SELECT name, bio, x_username, instagram_username, base_username, updated_at FROM profiles WHERE LOWER(address) = $1",
+            [address],
+        );
+        if (result.rows.length > 0) {
+            const row = result.rows[0];
+            res.json({
+                address,
+                name: row.name,
+                bio: row.bio,
+                xUsername: row.x_username,
+                instagramUsername: row.instagram_username,
+                baseUsername: row.base_username,
+                updatedAt: row.updated_at,
+            });
+        } else {
+            res.json({ address, name: null, bio: null, xUsername: null, instagramUsername: null, baseUsername: null });
+        }
+    } catch (error) {
+        console.error("Failed to fetch profile:", error.message);
+        res.status(500).json({ error: "Failed to fetch profile" });
+    }
+});
+
+// API: Update profile with signature verification
+app.post("/api/profile", async (req, res) => {
+    try {
+        const { address, name, bio, xUsername, instagramUsername, baseUsername, signature, timestamp } = req.body;
+
+        if (!address || !signature || timestamp === undefined) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        // Validate timestamp (within 5 minutes)
+        const now = Date.now();
+        if (Math.abs(now - timestamp) > 5 * 60 * 1000) {
+            return res.status(400).json({ error: "Signature expired" });
+        }
+
+        // Sanitize and validate fields
+        const cleanName = name?.trim().slice(0, 50) || null;
+        const cleanBio = bio?.trim().slice(0, 160) || null;
+        const cleanX = xUsername?.trim().replace(/^@/, "").slice(0, 50) || null;
+        const cleanInstagram = instagramUsername?.trim().replace(/^@/, "").slice(0, 50) || null;
+        const cleanBase = baseUsername?.trim().slice(0, 50) || null;
+
+        // Validate name characters (alphanumeric + spaces + basic punctuation)
+        if (cleanName && !/^[a-zA-Z0-9\s._-]+$/.test(cleanName)) {
+            return res.status(400).json({ error: "Name contains invalid characters" });
+        }
+
+        // Validate usernames (alphanumeric + underscores + dots)
+        const usernameRegex = /^[a-zA-Z0-9_.]+$/;
+        if (cleanX && !usernameRegex.test(cleanX)) {
+            return res.status(400).json({ error: "Invalid X username" });
+        }
+        if (cleanInstagram && !usernameRegex.test(cleanInstagram)) {
+            return res.status(400).json({ error: "Invalid Instagram username" });
+        }
+        if (cleanBase && !usernameRegex.test(cleanBase)) {
+            return res.status(400).json({ error: "Invalid Base username" });
+        }
+
+        // Construct the message that was signed (includes all fields for integrity)
+        const profileData = JSON.stringify({
+            name: cleanName,
+            bio: cleanBio,
+            xUsername: cleanX,
+            instagramUsername: cleanInstagram,
+            baseUsername: cleanBase,
+        });
+        const message = `Update my zang profile:\n\n${profileData}\n\nTimestamp: ${timestamp}`;
+
+        // Verify the signature
+        const isValid = await verifyMessage({
+            address,
+            message,
+            signature,
+        });
+
+        if (!isValid) {
+            return res.status(401).json({ error: "Invalid signature" });
+        }
+
+        // Update or insert the profile
+        await pool.query(
+            `INSERT INTO profiles (address, name, bio, x_username, instagram_username, base_username, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())
+             ON CONFLICT (address)
+             DO UPDATE SET name = $2, bio = $3, x_username = $4, instagram_username = $5, base_username = $6, updated_at = NOW()`,
+            [address.toLowerCase(), cleanName, cleanBio, cleanX, cleanInstagram, cleanBase],
+        );
+
+        res.json({
+            success: true,
+            name: cleanName,
+            bio: cleanBio,
+            xUsername: cleanX,
+            instagramUsername: cleanInstagram,
+            baseUsername: cleanBase,
+        });
+    } catch (error) {
+        console.error("Failed to update profile:", error.message);
+        res.status(500).json({ error: "Failed to update profile" });
     }
 });
 

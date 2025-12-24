@@ -40,6 +40,7 @@ import NFTHistory from "../components/NFTHistory";
 
 import Address from "../components/Address";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
+import makeBlockie from "ethereum-blockies-base64";
 import { useSyncStatus, useTokenEvents } from "../common/socket";
 
 import hljs from "highlight.js/lib/core";
@@ -875,11 +876,13 @@ export default function NFTPage() {
                                                 </pre>
                                             )
                                         ) : (
-                                            <Skeleton
-                                                count={12}
-                                                baseColor="#27272a"
-                                                highlightColor="#3f3f46"
-                                            />
+                                            <div className="h-[300px]">
+                                                <Skeleton
+                                                    count={12}
+                                                    baseColor="#27272a"
+                                                    highlightColor="#3f3f46"
+                                                />
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -901,10 +904,15 @@ export default function NFTPage() {
                                     )}
                                 </h1>
 
-                                <p className="text-ink-400 mb-4">
+                                <div className="flex items-center gap-2 text-ink-400 mb-4">
                                     {tokenAuthor !== null ? (
                                         <Fragment>
-                                            by{" "}
+                                            <span>by</span>
+                                            <img
+                                                src={makeBlockie(tokenAuthor)}
+                                                alt=""
+                                                className="w-5 h-5 rounded"
+                                            />
                                             <Address
                                                 address={tokenAuthor}
                                                 shorten
@@ -918,7 +926,7 @@ export default function NFTPage() {
                                             highlightColor="#3f3f46"
                                         />
                                     )}
-                                </p>
+                                </div>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {tokenType && totalSupply !== null ? (

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import BuyButton from "./BuyButton";
 import FulfillabilityInfo from "./FulfillabilityInfo";
 import Listing from "./Listing";
@@ -75,12 +76,16 @@ export default function Listings({
                                                         onUpdate={onUpdate}
                                                     />
                                                 ) : (
-                                                    <button
-                                                        className="px-4 py-2 bg-ink-700 text-ink-400 rounded-lg cursor-not-allowed text-sm"
-                                                        disabled
-                                                    >
-                                                        Connect wallet to buy
-                                                    </button>
+                                                    <ConnectButton.Custom>
+                                                        {({ openConnectModal }) => (
+                                                            <button
+                                                                onClick={openConnectModal}
+                                                                className="px-4 py-2 bg-accent-cyan text-ink-950 font-medium rounded-lg hover:bg-accent-cyan/90 transition-colors text-sm"
+                                                            >
+                                                                Connect to buy
+                                                            </button>
+                                                        )}
+                                                    </ConnectButton.Custom>
                                                 )}
                                             </Listing>
                                         </div>

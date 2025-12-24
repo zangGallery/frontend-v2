@@ -98,8 +98,8 @@ export default function HTMLViewer({ source }) {
                 width: "100%",
                 height: `${height}px`,
                 border: "none",
-                borderRadius: "8px",
                 display: "block",
+                transition: "height 0.15s ease-out",
             }}
             srcDoc={sanitize(source)}
             sandbox="allow-same-origin allow-scripts"

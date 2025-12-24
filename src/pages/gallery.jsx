@@ -120,6 +120,7 @@ export default function Gallery() {
                         dataLength={nfts.length}
                         next={loadMore}
                         hasMore={hasMore}
+                        style={{ overflow: 'visible' }}
                         loader={
                             <div className="flex justify-center py-8">
                                 <svg
@@ -149,7 +150,7 @@ export default function Gallery() {
                             </p>
                         }
                     >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-2 -mt-2">
                             {nfts.map((id) => (
                                 <NFTCard
                                     key={id}

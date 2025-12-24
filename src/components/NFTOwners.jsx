@@ -1,5 +1,6 @@
 import Skeleton from "react-loading-skeleton";
 import Address from "./Address";
+import makeBlockie from "ethereum-blockies-base64";
 
 export default function NFTOwners({ balances }) {
     return (
@@ -11,9 +12,16 @@ export default function NFTOwners({ balances }) {
                             key={index}
                             className="flex items-center justify-between py-2 border-b border-ink-800 last:border-b-0"
                         >
-                            <span className="font-mono text-sm text-ink-300">
-                                <Address address={owner} shorten nChar={8} />
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <img
+                                    src={makeBlockie(owner)}
+                                    alt=""
+                                    className="w-5 h-5 rounded"
+                                />
+                                <span className="font-mono text-sm text-ink-300">
+                                    <Address address={owner} shorten nChar={8} />
+                                </span>
+                            </div>
                             <span className="text-white font-medium">
                                 {balances[owner]}
                             </span>

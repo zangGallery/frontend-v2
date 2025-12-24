@@ -10,13 +10,10 @@ export default function Header() {
 
     const navLinks = [
         { href: "/", label: "Home" },
+        { href: "/gallery", label: "Gallery" },
         { href: "/mint", label: "Mint" },
         { href: "/activity", label: "Activity" },
     ];
-
-    if (isConnected) {
-        navLinks.push({ href: "/collection", label: "Collection" });
-    }
 
     return (
         <header className="sticky top-0 z-50 bg-ink-950/80 backdrop-blur-md border-b border-ink-800/50">

@@ -1,25 +1,68 @@
+import { useState, useEffect } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useBalance } from "wagmi";
-import { formatEther } from "viem";
-import config from "../config";
+import { useAccount } from "wagmi";
+import { useNavigate } from "react-router-dom";
 
 export default function WalletButton() {
+    const navigate = useNavigate();
     const { address } = useAccount();
-    const { data: balance } = useBalance({
-        address,
-        chainId: config.networks.main.chainId,
+
+    // Track if profile setup prompt is dismissed
+    const [promptDismissed, setPromptDismissed] = useState(() => {
+        try {
+            return localStorage.getItem("profileSetupDismissed") === "true";
+        } catch {
+            return false;
+        }
     });
 
-    const formattedBalance = balance
-        ? `${parseFloat(formatEther(balance.value)).toFixed(4)} ETH`
-        : null;
+    // Track if profile is empty
+    const [isProfileEmpty, setIsProfileEmpty] = useState(false);
+    const [checkedProfile, setCheckedProfile] = useState(false);
+
+    // Check profile when address changes
+    useEffect(() => {
+        if (!address) {
+            setIsProfileEmpty(false);
+            setCheckedProfile(false);
+            return;
+        }
+
+        const checkProfile = async () => {
+            try {
+                const res = await fetch(`/api/profile/${address.toLowerCase()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const isEmpty = !data.name && !data.bio && !data.xUsername &&
+                                   !data.instagramUsername && !data.baseUsername;
+                    setIsProfileEmpty(isEmpty);
+                }
+            } catch {
+                // Ignore errors
+            }
+            setCheckedProfile(true);
+        };
+
+        checkProfile();
+    }, [address]);
+
+    const dismissPrompt = (e) => {
+        e.stopPropagation();
+        setPromptDismissed(true);
+        try {
+            localStorage.setItem("profileSetupDismissed", "true");
+        } catch {
+            // Ignore localStorage errors
+        }
+    };
+
+    const showSetupHint = checkedProfile && isProfileEmpty && !promptDismissed;
 
     return (
         <ConnectButton.Custom>
             {({
                 account,
                 chain,
-                openAccountModal,
                 openChainModal,
                 openConnectModal,
                 mounted,
@@ -43,10 +86,11 @@ export default function WalletButton() {
                                 return (
                                     <button
                                         onClick={openConnectModal}
-                                        className="px-4 py-2 flex items-center gap-2 text-sm font-medium text-ink-100 bg-ink-800/50 rounded-lg border border-ink-700/50 hover:bg-ink-700/50 transition-colors"
+                                        className="p-2 flex items-center justify-center text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
+                                        title="Connect wallet"
                                     >
                                         <svg
-                                            className="w-4 h-4"
+                                            className="w-5 h-5"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -54,11 +98,10 @@ export default function WalletButton() {
                                             <path
                                                 strokeLinecap="round"
                                                 strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                                strokeWidth={1.5}
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                                             />
                                         </svg>
-                                        <span>Connect</span>
                                     </button>
                                 );
                             }
@@ -67,44 +110,81 @@ export default function WalletButton() {
                                 return (
                                     <button
                                         onClick={openChainModal}
-                                        className="px-4 py-2 flex items-center gap-2 text-sm font-medium text-red-400 bg-red-900/20 rounded-lg border border-red-700/50 hover:bg-red-900/30 transition-colors"
+                                        className="p-2 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors"
+                                        title="Wrong network"
                                     >
-                                        Wrong network
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={1.5}
+                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                            />
+                                        </svg>
                                     </button>
                                 );
                             }
 
-                            return (
-                                <div className="flex items-center bg-ink-800/50 rounded-lg border border-ink-700/50 overflow-hidden">
-                                    {/* Balance Display */}
-                                    {formattedBalance &&
-                                        chain.id ===
-                                            config.networks.main.chainId && (
-                                            <div className="px-3 py-2 flex items-center gap-2 text-ink-300 text-sm border-r border-ink-700/50">
-                                                <span className="font-mono">
-                                                    {formattedBalance}
-                                                </span>
-                                            </div>
-                                        )}
+                            if (showSetupHint) {
+                                return (
+                                    <div className="flex items-center gap-1 bg-accent-cyan/10 rounded-lg border border-accent-cyan/30 pl-3 pr-1">
+                                        <button
+                                            onClick={() => navigate(`/profile?address=${address}`)}
+                                            className="flex items-center gap-2 py-1.5 text-sm text-accent-cyan hover:text-white transition-colors"
+                                        >
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={1.5}
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                            <span>Set up profile</span>
+                                        </button>
+                                        <button
+                                            onClick={dismissPrompt}
+                                            className="p-1.5 text-accent-cyan/50 hover:text-accent-cyan transition-colors"
+                                            title="Dismiss"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                );
+                            }
 
-                                    {/* Account Button */}
-                                    <button
-                                        onClick={openAccountModal}
-                                        className="px-4 py-2 flex items-center gap-2 text-sm font-medium text-ink-100 hover:bg-ink-700/50 transition-colors"
+                            return (
+                                <button
+                                    onClick={() => navigate(`/profile?address=${address}`)}
+                                    className="p-2 flex items-center justify-center text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
+                                    title="Profile"
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
                                     >
-                                        {account.ensAvatar && (
-                                            <img
-                                                className="w-5 h-5 rounded-full object-cover"
-                                                src={account.ensAvatar}
-                                                alt=""
-                                            />
-                                        )}
-                                        <span className="font-mono text-xs">
-                                            {account.ensName ||
-                                                account.displayName}
-                                        </span>
-                                    </button>
-                                </div>
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={1.5}
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                        />
+                                    </svg>
+                                </button>
                             );
                         })()}
                     </div>
