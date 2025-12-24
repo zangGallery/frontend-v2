@@ -15,7 +15,7 @@ export default function Header() {
     ];
 
     if (isConnected) {
-        navLinks.push({ href: "/vault", label: "Vault" });
+        navLinks.push({ href: "/collection", label: "Collection" });
     }
 
     return (

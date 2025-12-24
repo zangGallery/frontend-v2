@@ -639,23 +639,39 @@ export default function NFTPage() {
     useEffect(() => {
         const updateId = updateTracker[0];
         if (updateId === id) {
-            // Force sync to pick up the new event, then refresh everything
-            fetch("/api/sync/force", { method: "POST" })
-                .then(() => {
-                    queryListings();
-                    queryTotalSupply();
-                    queryRoyaltyInfo();
-                    // Re-fetch events to show the new history entry
-                    if (tokenAuthor) {
-                        queryBalances(tokenAuthor);
+            const refreshData = () => {
+                queryListings();
+                queryTotalSupply();
+                queryRoyaltyInfo();
+                if (tokenAuthor) {
+                    queryBalances(tokenAuthor);
+                }
+            };
+
+            // Force sync with retry - RPC might lag behind transaction confirmation
+            const syncWithRetry = async (retries = 3, delay = 2000) => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const res = await fetch("/api/sync/force", { method: "POST" });
+                        const data = await res.json();
+                        refreshData();
+                        // If we synced new events, we're done
+                        if (data.eventsCount > 0) {
+                            return;
+                        }
+                        // Otherwise wait and try again
+                        if (i < retries - 1) {
+                            await new Promise(r => setTimeout(r, delay));
+                        }
+                    } catch {
+                        refreshData();
+                        return;
                     }
-                })
-                .catch(() => {
-                    // Still refresh even if sync fails
-                    queryListings();
-                    queryTotalSupply();
-                    queryRoyaltyInfo();
-                });
+                }
+            };
+
+            // Small delay to let transaction propagate, then sync
+            setTimeout(() => syncWithRetry(), 1000);
         }
     }, [updateTracker]);
 

@@ -40,7 +40,7 @@ export default function NFTHistory({ history, hideId, newestFirst = false }) {
     const getEventColor = (type) => {
         switch (type) {
             case "mint":
-                return "bg-green-500";
+                return "bg-cyan-500";
             case "transfer":
                 return "bg-blue-500";
             case "list":
@@ -48,7 +48,8 @@ export default function NFTHistory({ history, hideId, newestFirst = false }) {
             case "delist":
                 return "bg-ink-500";
             case "buy":
-                return "bg-purple-500";
+            case "purchase":
+                return "bg-green-500";
             default:
                 return "bg-ink-500";
         }

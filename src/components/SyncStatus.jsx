@@ -37,11 +37,11 @@ export default function SyncStatus({ meta, onRefresh, compact = false }) {
     const [relativeTime, setRelativeTime] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Update relative time every 10 seconds
+    // Update relative time every second (sync happens every 30s)
     useEffect(() => {
         const update = () => setRelativeTime(formatRelativeTime(meta?.lastSyncTime));
         update();
-        const interval = setInterval(update, 10000);
+        const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
     }, [meta?.lastSyncTime]);
 

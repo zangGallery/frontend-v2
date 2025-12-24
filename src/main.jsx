@@ -27,7 +27,7 @@ import "./styles/globals.css";
 import HomePage from "./pages/index";
 import NFTPage from "./pages/nft";
 import MintPage from "./pages/mint";
-import VaultPage from "./pages/vault";
+import CollectionPage from "./pages/collection";
 import ActivityPage from "./pages/activity";
 import BridgePage from "./pages/bridge";
 import NotFoundPage from "./pages/404";
@@ -52,7 +52,7 @@ function App() {
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/nft" element={<NFTPage />} />
                                 <Route path="/mint" element={<MintPage />} />
-                                <Route path="/vault" element={<VaultPage />} />
+                                <Route path="/collection" element={<CollectionPage />} />
                                 <Route path="/activity" element={<ActivityPage />} />
                                 <Route path="/bridge" element={<BridgePage />} />
                                 <Route path="*" element={<NotFoundPage />} />
