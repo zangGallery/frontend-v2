@@ -753,6 +753,16 @@ async function syncAllEvents() {
             );
         }
 
+        // Always emit sync status update via WebSocket
+        io.emit("syncStatus", {
+            lastSyncBlock: toBlockNum,
+            lastSyncTime: lastSyncTime.toISOString(),
+            isSyncing: false,
+            syncProgress: Math.round((toBlockNum / currentBlock) * 100),
+            blocksRemaining: Math.max(0, currentBlock - toBlockNum),
+            isCatchingUp,
+        });
+
         return {
             synced: true,
             eventsCount: allEvents.length,

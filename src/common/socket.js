@@ -92,4 +92,23 @@ export function useSocketStatus() {
     return isConnected;
 }
 
+// Hook to listen for sync status updates
+export function useSyncStatus(onSyncStatus) {
+    useEffect(() => {
+        const s = getSocket();
+
+        const handler = (status) => {
+            if (onSyncStatus) {
+                onSyncStatus(status);
+            }
+        };
+
+        s.on("syncStatus", handler);
+
+        return () => {
+            s.off("syncStatus", handler);
+        };
+    }, [onSyncStatus]);
+}
+
 export { getSocket };

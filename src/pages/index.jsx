@@ -11,7 +11,7 @@ import { useRecoilState } from "recoil";
 import { formatError, standardErrorState } from "../common/error";
 import StandardErrorDisplay from "../components/StandardErrorDisplay";
 import { useNavigate, Link } from "react-router-dom";
-import { useNewEvents, useSocketStatus } from "../common/socket";
+import { useNewEvents, useSocketStatus, useSyncStatus } from "../common/socket";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 
 import "../styles/tailwind.css";
@@ -360,6 +360,20 @@ export default function Home() {
     }, [zangAddress]);
 
     useNewEvents(handleNewEvents);
+
+    // Handle real-time sync status updates via WebSocket
+    const handleSyncStatus = useCallback((status) => {
+        setActivityMeta({
+            lastSyncBlock: status.lastSyncBlock,
+            lastSyncTime: status.lastSyncTime,
+            isSyncing: status.isSyncing,
+            syncProgress: status.syncProgress,
+            blocksRemaining: status.blocksRemaining,
+            isCatchingUp: status.isCatchingUp,
+        });
+    }, [setActivityMeta]);
+
+    useSyncStatus(handleSyncStatus);
 
     const getMoreIds = async (count) => {
         const newNFTs = [...nfts];
