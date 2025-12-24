@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, useCallback } from "react";
 import { atom, useRecoilState } from "recoil";
 import { publicClient } from "../common/provider";
 import config from "../config";
@@ -40,6 +40,7 @@ import NFTHistory from "../components/NFTHistory";
 
 import Address from "../components/Address";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
+import { useSyncStatus, useTokenEvents } from "../common/socket";
 
 import hljs from "highlight.js/lib/core";
 import html from "highlight.js/lib/languages/xml";
@@ -90,6 +91,35 @@ export default function NFTPage() {
 
     const [events, setEvents] = useState(null);
     const [eventsMeta, setEventsMeta] = useSyncMeta();
+
+    // Handle real-time sync status updates via WebSocket
+    const handleSyncStatus = useCallback((status) => {
+        setEventsMeta({
+            lastSyncBlock: status.lastSyncBlock,
+            lastSyncTime: status.lastSyncTime,
+            isSyncing: status.isSyncing,
+            syncProgress: status.syncProgress,
+            blocksRemaining: status.blocksRemaining,
+            isCatchingUp: status.isCatchingUp,
+        });
+    }, [setEventsMeta]);
+
+    useSyncStatus(handleSyncStatus);
+
+    // Handle real-time new events for this token via WebSocket
+    const handleNewTokenEvents = useCallback((newEvents) => {
+        if (newEvents.length > 0) {
+            // Refresh events/history
+            if (tokenAuthor) {
+                queryBalances(tokenAuthor);
+            }
+            // Refresh listings and balances
+            queryListings();
+            queryTotalSupply();
+        }
+    }, [tokenAuthor]);
+
+    useTokenEvents(id, handleNewTokenEvents);
 
     // View source toggle for markdown/html
     const [showSource, setShowSource] = useState(false);
