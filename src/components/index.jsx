@@ -1,3 +1,4 @@
+import Address from "./Address";
 import Header from "./Header";
 import ListModal from "./ListModal";
 import MintConfirmModal from "./MintConfirmModal";
@@ -7,6 +8,7 @@ import RoutingLink from "./RoutingLink";
 import WalletButton from "./WalletButton";
 
 export {
+    Address,
     Header,
     ListModal,
     MintConfirmModal,

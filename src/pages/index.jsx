@@ -2,8 +2,7 @@ import { Fragment, useCallback } from "react";
 import { useEffect, useState } from "react";
 import { formatEther, zeroAddress } from "viem";
 import { publicClient } from "../common/provider";
-import { NFTCard } from "../components";
-import InfiniteScroll from "react-infinite-scroll-component";
+import { NFTCard, Address } from "../components";
 import config from "../config";
 import { v1 } from "../common/abi";
 import { Header } from "../components";
@@ -13,6 +12,7 @@ import StandardErrorDisplay from "../components/StandardErrorDisplay";
 import { useNavigate, Link } from "react-router-dom";
 import { useNewEvents, useSocketStatus, useSyncStatus } from "../common/socket";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
+import makeBlockie from "ethereum-blockies-base64";
 
 import "../styles/tailwind.css";
 
@@ -163,127 +163,105 @@ export default function Home() {
     const [totalVolume, setTotalVolume] = useState(null);
     const [uniqueArtists, setUniqueArtists] = useState(null);
     const [activityMeta, setActivityMeta] = useSyncMeta();
-
-    const increment = 6;
+    const [topArtists, setTopArtists] = useState([]);
+    const [topCollectors, setTopCollectors] = useState([]);
 
     const zangAddress = config.contractAddresses.v1.zang;
-    const marketplaceAddress = config.contractAddresses.v1.marketplace;
 
+    // Single unified fetch for all home page data
     useEffect(() => {
-        const fetchLastTokenId = async () => {
+        const fetchHomeData = async () => {
             try {
-                const newLastNFTId = await publicClient.readContract({
-                    address: zangAddress,
-                    abi: v1.zang,
-                    functionName: "lastTokenId",
-                });
-                setLastNFTId(Number(newLastNFTId));
-            } catch (e) {
-                setStandardError(formatError(e));
-            }
-        };
-        fetchLastTokenId();
-    }, [setStandardError]);
+                const response = await fetch("/api/home");
+                if (!response.ok) throw new Error("Failed to fetch home data");
 
-    // Fetch recent events for live feed from cached API
-    useEffect(() => {
-        const fetchRecentEvents = async () => {
-            try {
-                // Fetch from cached API instead of RPC
-                const response = await fetch("/api/activity");
-                if (!response.ok) throw new Error("Failed to fetch activity");
+                const data = await response.json();
 
-                const { events: rawEvents, _meta } = await response.json();
-                setActivityMeta(_meta);
+                // Set lastNFTId from cache
+                setLastNFTId(data.lastNftId);
 
-                // Process events for feed
-                const events = rawEvents.slice(0, 50).map((e) => {
-                    const data = e.data;
-                    let type = "transfer";
-                    let price = null;
+                // Set stats
+                if (data.stats) {
+                    setUniqueArtists(data.stats.uniqueArtists);
+                    setTotalVolume(data.stats.totalVolumeEth);
+                }
 
-                    if (e.event_type === "TransferSingle" && data.from === "0x0000000000000000000000000000000000000000") {
-                        type = "mint";
-                    } else if (e.event_type === "TokenPurchased") {
-                        type = "purchase";
-                        price = formatEther(BigInt(data._price || 0));
-                    } else if (e.event_type === "TokenListed") {
-                        type = "list";
-                        price = formatEther(BigInt(data._price || 0));
+                // Set leaderboards
+                setTopArtists(data.topArtists || []);
+                setTopCollectors(data.topCollectors || []);
+
+                // Set sync metadata
+                if (data._meta) {
+                    setActivityMeta(data._meta);
+                }
+
+                // Set NFT IDs and cache prefetched data
+                if (data.nfts && data.nfts.length > 0) {
+                    const ids = data.nfts.map(n => parseInt(n.id, 10));
+                    setNFTs(ids);
+
+                    // Build cache from prefetched data (includes content for instant preview)
+                    const cache = {};
+                    for (const nft of data.nfts) {
+                        cache[nft.id] = {
+                            token_id: nft.id,
+                            name: nft.name,
+                            description: nft.description,
+                            author: nft.author,
+                            content_type: nft.contentType,
+                            content: nft.content, // Include content for immediate preview
+                            // Include pre-computed stats for NFTCard (eliminates RPC calls)
+                            _stats: {
+                                totalSupply: nft.totalSupply,
+                                floorPrice: nft.floorPrice,
+                                listedCount: nft.listedCount,
+                                totalVolume: nft.totalVolume,
+                            },
+                        };
                     }
+                    setNftDataCache(cache);
+                }
 
-                    return {
-                        type,
-                        id: e.token_id.toString(),
-                        blockNumber: Number(e.block_number),
-                        price,
-                    };
-                }).filter(e => e.type !== "transfer").slice(0, 10);
+                // Process recent events for live feed
+                if (data.recentEvents && data.recentEvents.length > 0) {
+                    const feedEvents = data.recentEvents
+                        .filter(e => e.type !== "TransferSingle" || e.type === "TransferSingle") // Keep all for now
+                        .map(e => {
+                            let type = "transfer";
+                            if (e.type === "TransferSingle") type = "mint";
+                            else if (e.type === "TokenPurchased") type = "purchase";
+                            else if (e.type === "TokenListed") type = "list";
 
-                // Fetch titles using batch API
-                const uniqueIds = [...new Set(events.map((e) => e.id))];
-                const batchResponse = await fetch("/api/nfts/batch", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ids: uniqueIds }),
-                });
-
-                const nftData = {};
-                if (batchResponse.ok) {
-                    const { nfts } = await batchResponse.json();
-                    for (const nft of nfts) {
-                        if (nft.data) {
-                            let contentType = "text";
-                            if (nft.data.content_type === "text/html") {
-                                contentType = "HTML";
-                            } else if (nft.data.content_type === "text/markdown") {
-                                contentType = "Markdown";
-                            }
-                            nftData[nft.id] = {
-                                title: nft.data.name || `#${nft.id}`,
-                                contentType,
+                            return {
+                                type,
+                                id: e.tokenId.toString(),
+                                title: e.title || `#${e.tokenId}`,
+                                blockNumber: e.blockNumber,
+                                price: e.price,
                             };
-                        } else {
-                            nftData[nft.id] = { title: `#${nft.id}`, contentType: "text" };
-                        }
-                    }
-                }
+                        })
+                        .filter(e => e.type !== "transfer")
+                        .slice(0, 10);
 
-                // Add titles and content types to events
-                const eventsWithData = events.map((e) => ({
-                    ...e,
-                    title: nftData[e.id]?.title || `#${e.id}`,
-                    contentType: nftData[e.id]?.contentType || "text",
-                }));
-                setRecentEvents(eventsWithData);
+                    setRecentEvents(feedEvents);
+                }
             } catch (e) {
-                console.error("Error fetching activity:", e);
-            }
-        };
-
-        fetchRecentEvents();
-    }, []);
-
-    // Fetch stats (unique artists, total volume) from DB
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await fetch("/api/stats");
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.uniqueArtists > 0) {
-                        setUniqueArtists(data.uniqueArtists);
-                    }
-                    if (data.totalVolumeEth !== undefined) {
-                        setTotalVolume(data.totalVolumeEth);
-                    }
+                console.error("Error fetching home data:", e);
+                // Fallback to RPC for lastNFTId if API fails
+                try {
+                    const newLastNFTId = await publicClient.readContract({
+                        address: zangAddress,
+                        abi: v1.zang,
+                        functionName: "lastTokenId",
+                    });
+                    setLastNFTId(Number(newLastNFTId));
+                } catch (rpcError) {
+                    setStandardError(formatError(rpcError));
                 }
-            } catch {
-                // Silent fail
             }
         };
-        fetchStats();
-    }, []);
+        fetchHomeData();
+    }, [setStandardError, zangAddress, setActivityMeta]);
 
     // WebSocket connection status
     const isConnected = useSocketStatus();
@@ -375,52 +353,8 @@ export default function Home() {
 
     useSyncStatus(handleSyncStatus);
 
-    const getMoreIds = async (count) => {
-        const newNFTs = [...nfts];
-        const newIds = [];
-
-        for (let i = 0; i < count; i++) {
-            const newId = lastNFTId - newNFTs.length - i;
-            if (newId >= 1) {
-                newIds.push(newId);
-            }
-        }
-
-        if (newIds.length === 0) return;
-
-        // Add IDs to list immediately for UI responsiveness
-        setNFTs([...newNFTs, ...newIds]);
-
-        // Batch fetch NFT data for all new IDs
-        try {
-            const response = await fetch("/api/nfts/batch", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ids: newIds }),
-            });
-
-            if (response.ok) {
-                const { nfts: batchData } = await response.json();
-                const newCache = { ...nftDataCache };
-
-                for (const nft of batchData) {
-                    if (nft.data) {
-                        newCache[nft.id] = nft.data;
-                    }
-                }
-
-                setNftDataCache(newCache);
-            }
-        } catch (e) {
-            // Silent fail - individual NFTCards will fetch their own data
-        }
-    };
-
-    useEffect(() => {
-        if (lastNFTId !== null) {
-            getMoreIds(12);
-        }
-    }, [lastNFTId]);
+    // Note: NFT data is now fetched via /api/home unified endpoint
+    // No need for separate getMoreIds - data comes pre-cached
 
     return (
         <div className="min-h-screen bg-ink-950">
@@ -533,7 +467,7 @@ export default function Home() {
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-ink-800 to-transparent" />
             </section>
 
-            {/* Gallery Section */}
+            {/* Gallery Section - Latest Works */}
             <section
                 id="gallery"
                 className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
@@ -555,89 +489,141 @@ export default function Home() {
                     )}
                 </div>
 
-                {/* NFT Grid */}
-                <InfiniteScroll
-                    dataLength={nfts.length}
-                    next={() => getMoreIds(increment)}
-                    hasMore={nfts.length < lastNFTId}
-                    loader={
-                        <div className="col-span-full flex justify-center py-8">
-                            <div className="flex items-center gap-3 text-ink-400">
-                                <svg
-                                    className="animate-spin h-5 w-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                    />
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                    />
-                                </svg>
-                                <span>Loading more...</span>
-                            </div>
+                {/* NFT Grid - Limited to 12 */}
+                {lastNFTId === null ? (
+                    <div className="flex justify-center py-8">
+                        <div className="flex items-center gap-3 text-ink-400">
+                            <svg
+                                className="animate-spin h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                />
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                />
+                            </svg>
+                            <span>Loading...</span>
                         </div>
-                    }
-                    endMessage={
-                        lastNFTId === null ? (
-                            <div className="col-span-full flex justify-center py-8">
-                                <div className="flex items-center gap-3 text-ink-400">
-                                    <svg
-                                        className="animate-spin h-5 w-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        />
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                        />
-                                    </svg>
-                                    <span>Loading...</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="col-span-full text-center py-12">
-                                <p className="text-ink-500">
-                                    You've seen all {lastNFTId} NFTs!
-                                </p>
-                                <button
-                                    onClick={() => navigate("/mint")}
-                                    className="mt-4 text-accent-cyan hover:text-accent-cyan/80 transition-colors"
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {nfts.slice(0, 12).map((id) => (
+                                <NFTCard
+                                    id={id}
+                                    key={id}
+                                    prefetchedData={nftDataCache[id]}
+                                />
+                            ))}
+                        </div>
+                        {lastNFTId > 12 && (
+                            <div className="text-center mt-10">
+                                <Link
+                                    to="/activity"
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-ink-800 text-ink-200 font-medium rounded-lg hover:bg-ink-700 hover:text-white transition-colors"
                                 >
-                                    Create your own →
-                                </button>
+                                    See All Works
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                    </svg>
+                                </Link>
                             </div>
-                        )
-                    }
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                        {nfts.map((id) => (
-                            <NFTCard
-                                id={id}
-                                key={id}
-                                prefetchedData={nftDataCache[id]}
-                            />
+                        )}
+                    </>
+                )}
+            </section>
+
+            {/* Top Artists Section */}
+            {topArtists.length > 0 && (
+                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-ink-800">
+                    <div className="space-y-1 mb-10">
+                        <h2 className="text-2xl sm:text-3xl font-mono text-ink-100">
+                            Top Artists
+                        </h2>
+                        <p className="text-ink-500 text-sm">
+                            By sales volume
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {topArtists.slice(0, 6).map((artist, index) => (
+                            <Link
+                                key={artist.address}
+                                to={`/profile?address=${artist.address}`}
+                                className="flex items-center gap-4 p-5 bg-ink-900/50 rounded-xl border border-ink-800 hover:border-ink-600 hover:bg-ink-800/50 transition-colors"
+                            >
+                                <span className="text-ink-500 font-mono text-lg w-6">
+                                    {index + 1}
+                                </span>
+                                <img
+                                    src={makeBlockie(artist.address)}
+                                    alt=""
+                                    className="w-12 h-12 rounded-lg"
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-ink-200 font-mono text-sm">
+                                        <Address address={artist.address} shorten nChar={6} disableLink />
+                                    </div>
+                                    <div className="text-ink-500 text-xs mt-1">
+                                        {artist.totalCreated} works · {artist.volumeEth.toFixed(4)} ETH
+                                    </div>
+                                </div>
+                            </Link>
                         ))}
                     </div>
-                </InfiniteScroll>
-            </section>
+                </section>
+            )}
+
+            {/* Top Collectors Section */}
+            {topCollectors.length > 0 && (
+                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-ink-800">
+                    <div className="space-y-1 mb-10">
+                        <h2 className="text-2xl sm:text-3xl font-mono text-ink-100">
+                            Top Collectors
+                        </h2>
+                        <p className="text-ink-500 text-sm">
+                            By purchase volume
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {topCollectors.slice(0, 6).map((collector, index) => (
+                            <Link
+                                key={collector.address}
+                                to={`/profile?address=${collector.address}`}
+                                className="flex items-center gap-4 p-5 bg-ink-900/50 rounded-xl border border-ink-800 hover:border-ink-600 hover:bg-ink-800/50 transition-colors"
+                            >
+                                <span className="text-ink-500 font-mono text-lg w-6">
+                                    {index + 1}
+                                </span>
+                                <img
+                                    src={makeBlockie(collector.address)}
+                                    alt=""
+                                    className="w-12 h-12 rounded-lg"
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-ink-200 font-mono text-sm">
+                                        <Address address={collector.address} shorten nChar={6} disableLink />
+                                    </div>
+                                    <div className="text-ink-500 text-xs mt-1">
+                                        {collector.totalCollected} collected · {collector.volumeEth.toFixed(4)} ETH
+                                    </div>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

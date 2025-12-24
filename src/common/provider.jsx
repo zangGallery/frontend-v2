@@ -96,3 +96,6 @@ export const mainnetClient = createPublicClient({
           )
         : http("https://eth.llamarpc.com"),
 });
+
+// Export Base client for Base ENS (Basenames) resolution
+export const baseClient = _baseClient;

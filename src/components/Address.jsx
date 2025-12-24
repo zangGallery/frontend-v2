@@ -1,4 +1,4 @@
-import config from "../config";
+import { Link } from "react-router-dom";
 import { useEns } from "../common/ens";
 import { shortenAddress } from "../common/utils";
 
@@ -11,14 +11,12 @@ export default function Address({ address, shorten, nChar, disableLink }) {
     return (
         <span className="font-mono text-ink-300">
             {!disableLink ? (
-                <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href={config.blockExplorer.url + "/address/" + address}
+                <Link
+                    to={`/profile?address=${address}`}
                     className="hover:text-accent-cyan transition-colors underline decoration-ink-600 hover:decoration-accent-cyan"
                 >
                     {displayText}
-                </a>
+                </Link>
             ) : (
                 displayText
             )}

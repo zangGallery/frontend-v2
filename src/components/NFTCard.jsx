@@ -55,26 +55,43 @@ function TypeBadge({ type }) {
 }
 
 // Accept optional prefetched data to avoid individual API calls
+// When prefetchedData includes _stats, all RPC calls are skipped
 export default function NFTCard({ id, prefetchedData }) {
     const navigate = useNavigate();
     const [tokenData, setTokenData] = useState(prefetchedData ? { name: prefetchedData.name, description: prefetchedData.description, text_uri: prefetchedData.text_uri } : null);
     const [tokenAuthor, setTokenAuthor] = useState(prefetchedData?.author || null);
     const [tokenType, setTokenType] = useState(prefetchedData?.content_type || null);
-    const [tokenContent, setTokenContent] = useState(prefetchedData?.content || null);
+    // Use null coalescing to treat empty string as valid content (not trigger refetch)
+    const [tokenContent, setTokenContent] = useState(prefetchedData?.content ?? null);
     const [exists, setExists] = useState(true);
 
-    // Stats
-    const [totalSupply, setTotalSupply] = useState(null);
-    const [floorPrice, setFloorPrice] = useState(null);
-    const [listedCount, setListedCount] = useState(null);
-    const [totalVolume, setTotalVolume] = useState(null);
+    // Stats - use prefetched stats if available (eliminates RPC calls)
+    const prefetchedStats = prefetchedData?._stats;
+    const [totalSupply, setTotalSupply] = useState(prefetchedStats?.totalSupply ?? null);
+    // floorPrice from server is in wei, convert to ETH
+    const [floorPrice, setFloorPrice] = useState(
+        prefetchedStats?.floorPrice ? parseFloat(prefetchedStats.floorPrice) / 1e18 : null
+    );
+    const [listedCount, setListedCount] = useState(prefetchedStats?.listedCount ?? null);
+    // totalVolume from server is in wei, convert to ETH
+    const [totalVolume, setTotalVolume] = useState(
+        prefetchedStats?.totalVolume ? parseFloat(prefetchedStats.totalVolume) / 1e18 : null
+    );
 
     const zangAddress = config.contractAddresses.v1.zang;
     const marketplaceAddress = config.contractAddresses.v1.marketplace;
 
-    // Fetch all data in parallel
+    // Fetch data only if not fully prefetched
     useEffect(() => {
         if (!id) return;
+
+        // Skip all RPC calls if we have prefetched stats (home page optimization)
+        // This eliminates 4+ RPC calls per card: totalSupply, listingCount, listings[], getContractEvents
+        if (prefetchedStats !== undefined) {
+            // Content is already set from prefetched data - no additional fetch needed
+            // Empty string content is valid (some NFTs have no text content)
+            return;
+        }
 
         const fetchAllData = async () => {
             try {
@@ -182,7 +199,7 @@ export default function NFTCard({ id, prefetchedData }) {
         };
 
         fetchAllData();
-    }, [id]);
+    }, [id, prefetchedStats, prefetchedData, zangAddress, marketplaceAddress]);
 
     if (!exists) {
         return null;

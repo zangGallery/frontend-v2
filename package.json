@@ -37,6 +37,7 @@
         "compression": "^1.7.4",
         "decimal.js": "^10.4.0",
         "dotenv": "^16.3.0",
+        "ethereum-blockies-base64": "^1.0.2",
         "express": "^4.22.1",
         "highlight.js": "^11.11.1",
         "javascript-time-ago": "^2.5.0",

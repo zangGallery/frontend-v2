@@ -97,6 +97,35 @@ async function initializeDatabase() {
                 updated_at TIMESTAMP DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_authors_minted ON authors(total_minted DESC);
+
+            -- Pre-computed home page cache (single row with complete JSON payload)
+            CREATE TABLE IF NOT EXISTS home_page_cache (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                data JSONB NOT NULL,
+                last_nft_id BIGINT NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+
+            -- Pre-computed leaderboards
+            CREATE TABLE IF NOT EXISTS leaderboards (
+                type VARCHAR(20) PRIMARY KEY,
+                data JSONB NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+
+            -- Enhanced index for recent events
+            CREATE INDEX IF NOT EXISTS idx_events_recent ON events(block_number DESC, log_index DESC);
+        `);
+
+        // Add new columns to token_stats if they don't exist
+        await client.query(`
+            DO $$ BEGIN
+                ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS total_supply BIGINT;
+                ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS floor_price TEXT;
+                ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS listed_count INTEGER DEFAULT 0;
+                ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS total_volume TEXT DEFAULT '0';
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
         `);
         console.log("Database tables initialized");
     } catch (error) {
@@ -579,6 +608,42 @@ const ZANG_TRANSFER_ABI = [
     },
 ];
 
+// Marketplace read functions for listing sync
+const MARKETPLACE_READ_ABI = [
+    {
+        type: "function",
+        name: "listingCount",
+        inputs: [{ name: "_tokenId", type: "uint256" }],
+        outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+    },
+    {
+        type: "function",
+        name: "listings",
+        inputs: [
+            { name: "_tokenId", type: "uint256" },
+            { name: "_index", type: "uint256" },
+        ],
+        outputs: [
+            { name: "price", type: "uint256" },
+            { name: "seller", type: "address" },
+            { name: "amount", type: "uint256" },
+        ],
+        stateMutability: "view",
+    },
+];
+
+// Zang totalSupply function
+const ZANG_READ_ABI = [
+    {
+        type: "function",
+        name: "totalSupply",
+        inputs: [{ name: "_tokenId", type: "uint256" }],
+        outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+    },
+];
+
 // Sync all events globally (efficient - only incremental)
 async function syncAllEvents() {
     if (isSyncing) {
@@ -892,6 +957,120 @@ async function updateAuthorStats() {
     console.log(`Updated stats for ${authorStats.rows.length} authors`);
 }
 
+// Sync marketplace listings (floor prices, listing counts, total supply)
+// This runs periodically to keep listing data fresh
+async function syncMarketplaceListings() {
+    console.log("Syncing marketplace listings...");
+
+    try {
+        // Get all token IDs from nfts table
+        const tokens = await pool.query(
+            "SELECT token_id FROM nfts WHERE content IS NOT NULL ORDER BY token_id DESC"
+        );
+
+        if (tokens.rows.length === 0) {
+            console.log("No tokens to sync");
+            return { synced: 0 };
+        }
+
+        const zeroAddress = "0x0000000000000000000000000000000000000000";
+        let synced = 0;
+
+        // Process in batches of 5 to avoid RPC rate limits
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < tokens.rows.length; i += BATCH_SIZE) {
+            const batch = tokens.rows.slice(i, i + BATCH_SIZE);
+
+            await Promise.all(batch.map(async ({ token_id }) => {
+                try {
+                    // Get total supply and listing count in parallel
+                    const [totalSupply, listingCount] = await Promise.all([
+                        publicClient.readContract({
+                            address: ZANG_CONTRACT,
+                            abi: ZANG_READ_ABI,
+                            functionName: "totalSupply",
+                            args: [BigInt(token_id)],
+                        }),
+                        publicClient.readContract({
+                            address: MARKETPLACE_ADDRESS,
+                            abi: MARKETPLACE_READ_ABI,
+                            functionName: "listingCount",
+                            args: [BigInt(token_id)],
+                        }),
+                    ]);
+
+                    const count = Number(listingCount);
+                    let floorPrice = null;
+                    let listedCount = 0;
+
+                    // If there are listings, find the floor price
+                    if (count > 0) {
+                        const listingPromises = [];
+                        for (let j = 0; j < Math.min(count, 10); j++) { // Limit to first 10 listings
+                            listingPromises.push(
+                                publicClient.readContract({
+                                    address: MARKETPLACE_ADDRESS,
+                                    abi: MARKETPLACE_READ_ABI,
+                                    functionName: "listings",
+                                    args: [BigInt(token_id), BigInt(j)],
+                                })
+                            );
+                        }
+
+                        const listings = await Promise.all(listingPromises);
+                        const activeListings = listings
+                            .map(([price, seller, amount]) => ({ price, seller, amount }))
+                            .filter(l => l.seller !== zeroAddress && Number(l.amount) > 0);
+
+                        listedCount = activeListings.reduce((sum, l) => sum + Number(l.amount), 0);
+
+                        if (activeListings.length > 0) {
+                            const prices = activeListings.map(l => l.price);
+                            const minPrice = prices.reduce((min, p) => p < min ? p : min, prices[0]);
+                            floorPrice = minPrice.toString();
+                        }
+                    }
+
+                    // Calculate total volume from purchase events in database
+                    const volumeResult = await pool.query(`
+                        SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume_wei
+                        FROM events
+                        WHERE event_type = 'TokenPurchased' AND token_id = $1
+                    `, [token_id]);
+                    const totalVolume = volumeResult.rows[0].volume_wei || '0';
+
+                    // Update token_stats
+                    await pool.query(`
+                        INSERT INTO token_stats (token_id, total_supply, floor_price, listed_count, total_volume, updated_at)
+                        VALUES ($1, $2, $3, $4, $5, NOW())
+                        ON CONFLICT (token_id) DO UPDATE SET
+                            total_supply = $2,
+                            floor_price = $3,
+                            listed_count = $4,
+                            total_volume = $5,
+                            updated_at = NOW()
+                    `, [token_id, Number(totalSupply), floorPrice, listedCount, totalVolume]);
+
+                    synced++;
+                } catch (e) {
+                    console.error(`Failed to sync token ${token_id}:`, e.message);
+                }
+            }));
+
+            // Small delay between batches to avoid rate limits
+            if (i + BATCH_SIZE < tokens.rows.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        console.log(`Synced marketplace data for ${synced}/${tokens.rows.length} tokens`);
+        return { synced };
+    } catch (error) {
+        console.error("Marketplace sync failed:", error.message);
+        return { synced: 0, error: error.message };
+    }
+}
+
 // Pre-warm NFT cache by fetching all known tokens
 async function prewarmNftCache() {
     console.log("Pre-warming NFT cache...");
@@ -1183,32 +1362,127 @@ app.get("/api/token/:id/stats", async (req, res) => {
     }
 });
 
-// API: Get author profile
+// API: Get author/address profile
 app.get("/api/author/:address", async (req, res) => {
     try {
         const address = req.params.address.toLowerCase();
 
-        // Get author stats
+        // Get author stats from authors table
         const authorResult = await pool.query(
             "SELECT * FROM authors WHERE LOWER(address) = $1",
             [address],
         );
 
-        // Get their NFTs
-        const nftsResult = await pool.query(
-            "SELECT token_id, name, description, content_type FROM nfts WHERE LOWER(author) = $1 ORDER BY token_id",
+        // Get NFTs they created
+        const createdResult = await pool.query(
+            "SELECT token_id, name, description, content_type FROM nfts WHERE LOWER(author) = $1 ORDER BY token_id DESC",
             [address],
         );
 
+        // Calculate collected NFTs from transfer events
+        // Get all tokens received (to = address)
+        const receivedResult = await pool.query(
+            `SELECT token_id, SUM((data->>'value')::bigint) as received
+             FROM events
+             WHERE event_type = 'TransferSingle'
+               AND LOWER(data->>'to') = $1
+             GROUP BY token_id`,
+            [address],
+        );
+
+        // Get all tokens sent (from = address)
+        const sentResult = await pool.query(
+            `SELECT token_id, SUM((data->>'value')::bigint) as sent
+             FROM events
+             WHERE event_type = 'TransferSingle'
+               AND LOWER(data->>'from') = $1
+             GROUP BY token_id`,
+            [address],
+        );
+
+        // Calculate net balance per token
+        const balanceMap = {};
+        for (const row of receivedResult.rows) {
+            balanceMap[row.token_id] = (balanceMap[row.token_id] || 0n) + BigInt(row.received);
+        }
+        for (const row of sentResult.rows) {
+            balanceMap[row.token_id] = (balanceMap[row.token_id] || 0n) - BigInt(row.sent);
+        }
+
+        // Get token IDs with positive balance (excluding ones they authored)
+        const createdTokenIds = new Set(createdResult.rows.map(r => r.token_id.toString()));
+        const collectedTokenIds = Object.entries(balanceMap)
+            .filter(([tokenId, balance]) => balance > 0n && !createdTokenIds.has(tokenId))
+            .map(([tokenId]) => parseInt(tokenId, 10));
+
+        // Fetch NFT data for collected tokens
+        let collectedNfts = [];
+        if (collectedTokenIds.length > 0) {
+            const collectedResult = await pool.query(
+                `SELECT token_id, name, description, content_type
+                 FROM nfts
+                 WHERE token_id = ANY($1)
+                 ORDER BY token_id DESC`,
+                [collectedTokenIds],
+            );
+            collectedNfts = collectedResult.rows;
+        }
+
+        // Calculate volume as buyer and seller from TokenPurchased events
+        const buyerVolumeResult = await pool.query(
+            `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
+             FROM events
+             WHERE event_type = 'TokenPurchased'
+               AND LOWER(data->>'_buyer') = $1`,
+            [address],
+        );
+
+        const sellerVolumeResult = await pool.query(
+            `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
+             FROM events
+             WHERE event_type = 'TokenPurchased'
+               AND LOWER(data->>'_seller') = $1`,
+            [address],
+        );
+
+        // Get first activity (earliest event involving this address)
+        const firstActivityResult = await pool.query(
+            `SELECT MIN(block_number) as first_block
+             FROM events
+             WHERE LOWER(data->>'from') = $1
+                OR LOWER(data->>'to') = $1
+                OR LOWER(data->>'_buyer') = $1
+                OR LOWER(data->>'_seller') = $1`,
+            [address],
+        );
+
+        // Get timestamp for first activity block
+        let firstActivityTimestamp = null;
+        if (firstActivityResult.rows[0]?.first_block) {
+            firstActivityTimestamp = await getBlockTimestamp(firstActivityResult.rows[0].first_block);
+        }
+
+        // Convert volumes from wei to ETH
+        const volumeAsBuyer = Number(buyerVolumeResult.rows[0].volume) / 1e18;
+        const volumeAsSeller = Number(sellerVolumeResult.rows[0].volume) / 1e18;
+
         res.json({
-            author: authorResult.rows[0] || {
-                address,
-                total_minted: nftsResult.rows.length,
+            address,
+            stats: {
+                totalCreated: createdResult.rows.length,
+                totalCollected: collectedNfts.length,
+                volumeAsBuyer: volumeAsBuyer.toFixed(4),
+                volumeAsSeller: volumeAsSeller.toFixed(4),
+                totalVolume: (volumeAsBuyer + volumeAsSeller).toFixed(4),
+                firstActivityBlock: firstActivityResult.rows[0]?.first_block || null,
+                firstActivityTimestamp,
             },
-            nfts: nftsResult.rows,
+            created: createdResult.rows,
+            collected: collectedNfts,
         });
     } catch (error) {
-        res.status(500).json({ error: "Failed to fetch author" });
+        console.error("Failed to fetch profile:", error.message);
+        res.status(500).json({ error: "Failed to fetch profile" });
     }
 });
 
@@ -1223,6 +1497,433 @@ app.get("/api/authors", async (req, res) => {
         res.json({ authors: result.rows });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch authors" });
+    }
+});
+
+// API: Get top artists by volume (ties broken by total minted)
+app.get("/api/top-artists", async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+
+        // Get all unique artists (authors of NFTs)
+        const artistsResult = await pool.query(
+            `SELECT DISTINCT LOWER(author) as address FROM nfts`
+        );
+
+        const artists = [];
+
+        for (const row of artistsResult.rows) {
+            const address = row.address;
+
+            // Count NFTs created
+            const createdResult = await pool.query(
+                `SELECT COUNT(*) as count FROM nfts WHERE LOWER(author) = $1`,
+                [address]
+            );
+            const totalCreated = parseInt(createdResult.rows[0].count, 10);
+
+            // Calculate volume as seller
+            const volumeResult = await pool.query(
+                `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
+                 FROM events
+                 WHERE event_type = 'TokenPurchased'
+                   AND LOWER(data->>'_seller') = $1`,
+                [address]
+            );
+            const volumeWei = BigInt(volumeResult.rows[0].volume || 0);
+            const volumeEth = Number(volumeWei) / 1e18;
+
+            artists.push({
+                address,
+                totalCreated,
+                volumeEth,
+            });
+        }
+
+        // Sort by volume (desc), then by totalCreated (desc)
+        artists.sort((a, b) => {
+            if (b.volumeEth !== a.volumeEth) {
+                return b.volumeEth - a.volumeEth;
+            }
+            return b.totalCreated - a.totalCreated;
+        });
+
+        res.json({ artists: artists.slice(0, limit) });
+    } catch (error) {
+        console.error("Failed to fetch top artists:", error.message);
+        res.status(500).json({ error: "Failed to fetch top artists" });
+    }
+});
+
+// API: Get top collectors by volume (ties broken by total collected)
+app.get("/api/top-collectors", async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+
+        // Get all unique addresses that have received tokens (buyers/collectors)
+        const collectorsResult = await pool.query(
+            `SELECT DISTINCT LOWER(data->>'to') as address
+             FROM events
+             WHERE event_type = 'TransferSingle'
+               AND data->>'to' != '0x0000000000000000000000000000000000000000'`
+        );
+
+        const collectors = [];
+
+        for (const row of collectorsResult.rows) {
+            const address = row.address;
+            if (!address) continue;
+
+            // Calculate net balance of collected tokens (excluding ones they authored)
+            const receivedResult = await pool.query(
+                `SELECT token_id, SUM((data->>'value')::bigint) as received
+                 FROM events
+                 WHERE event_type = 'TransferSingle'
+                   AND LOWER(data->>'to') = $1
+                 GROUP BY token_id`,
+                [address]
+            );
+
+            const sentResult = await pool.query(
+                `SELECT token_id, SUM((data->>'value')::bigint) as sent
+                 FROM events
+                 WHERE event_type = 'TransferSingle'
+                   AND LOWER(data->>'from') = $1
+                 GROUP BY token_id`,
+                [address]
+            );
+
+            // Get tokens they authored (to exclude)
+            const authoredResult = await pool.query(
+                `SELECT token_id FROM nfts WHERE LOWER(author) = $1`,
+                [address]
+            );
+            const authoredTokens = new Set(authoredResult.rows.map(r => r.token_id.toString()));
+
+            // Calculate net balance
+            const balanceMap = {};
+            for (const r of receivedResult.rows) {
+                balanceMap[r.token_id] = (balanceMap[r.token_id] || 0n) + BigInt(r.received);
+            }
+            for (const r of sentResult.rows) {
+                balanceMap[r.token_id] = (balanceMap[r.token_id] || 0n) - BigInt(r.sent);
+            }
+
+            // Count collected tokens (positive balance, not authored by them)
+            let totalCollected = 0;
+            for (const [tokenId, balance] of Object.entries(balanceMap)) {
+                if (balance > 0n && !authoredTokens.has(tokenId)) {
+                    totalCollected++;
+                }
+            }
+
+            // Calculate volume as buyer
+            const volumeResult = await pool.query(
+                `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
+                 FROM events
+                 WHERE event_type = 'TokenPurchased'
+                   AND LOWER(data->>'_buyer') = $1`,
+                [address]
+            );
+            const volumeWei = BigInt(volumeResult.rows[0].volume || 0);
+            const volumeEth = Number(volumeWei) / 1e18;
+
+            // Only include if they have volume or collected something
+            if (volumeEth > 0 || totalCollected > 0) {
+                collectors.push({
+                    address,
+                    totalCollected,
+                    volumeEth,
+                });
+            }
+        }
+
+        // Sort by volume (desc), then by totalCollected (desc)
+        collectors.sort((a, b) => {
+            if (b.volumeEth !== a.volumeEth) {
+                return b.volumeEth - a.volumeEth;
+            }
+            return b.totalCollected - a.totalCollected;
+        });
+
+        res.json({ collectors: collectors.slice(0, limit) });
+    } catch (error) {
+        console.error("Failed to fetch top collectors:", error.message);
+        res.status(500).json({ error: "Failed to fetch top collectors" });
+    }
+});
+
+// ============================================================
+// HOME PAGE CACHE - Pre-computed unified endpoint
+// ============================================================
+
+// Build pre-computed leaderboards (top artists and collectors)
+async function updateLeaderboards() {
+    try {
+        // Top Artists - single efficient SQL query (eliminates N+1)
+        const artistsResult = await pool.query(`
+            WITH artist_volumes AS (
+                SELECT
+                    LOWER(data->>'_seller') as address,
+                    SUM((data->>'_price')::numeric * (data->>'_amount')::numeric) as volume_wei
+                FROM events
+                WHERE event_type = 'TokenPurchased'
+                GROUP BY LOWER(data->>'_seller')
+            ),
+            artist_stats AS (
+                SELECT
+                    LOWER(n.author) as address,
+                    COUNT(*) as total_created,
+                    COALESCE(av.volume_wei, 0) as volume_wei
+                FROM nfts n
+                LEFT JOIN artist_volumes av ON LOWER(n.author) = av.address
+                GROUP BY LOWER(n.author), av.volume_wei
+            )
+            SELECT
+                address,
+                total_created::int,
+                (volume_wei / 1e18)::numeric as volume_eth
+            FROM artist_stats
+            ORDER BY volume_wei DESC, total_created DESC
+            LIMIT 10
+        `);
+
+        await pool.query(`
+            INSERT INTO leaderboards (type, data, updated_at)
+            VALUES ('artists', $1, NOW())
+            ON CONFLICT (type) DO UPDATE SET data = $1, updated_at = NOW()
+        `, [JSON.stringify(artistsResult.rows.map(r => ({
+            address: r.address,
+            totalCreated: r.total_created,
+            volumeEth: parseFloat(r.volume_eth) || 0,
+        })))]);
+
+        // Top Collectors - single efficient SQL query (eliminates N+1)
+        const collectorsResult = await pool.query(`
+            WITH collector_volumes AS (
+                SELECT
+                    LOWER(data->>'_buyer') as address,
+                    SUM((data->>'_price')::numeric * (data->>'_amount')::numeric) as volume_wei
+                FROM events
+                WHERE event_type = 'TokenPurchased'
+                GROUP BY LOWER(data->>'_buyer')
+            ),
+            received_tokens AS (
+                SELECT
+                    LOWER(data->>'to') as address,
+                    token_id,
+                    SUM((data->>'value')::bigint) as received
+                FROM events
+                WHERE event_type = 'TransferSingle'
+                  AND data->>'to' != '0x0000000000000000000000000000000000000000'
+                GROUP BY LOWER(data->>'to'), token_id
+            ),
+            sent_tokens AS (
+                SELECT
+                    LOWER(data->>'from') as address,
+                    token_id,
+                    SUM((data->>'value')::bigint) as sent
+                FROM events
+                WHERE event_type = 'TransferSingle'
+                GROUP BY LOWER(data->>'from'), token_id
+            ),
+            token_balances AS (
+                SELECT
+                    COALESCE(r.address, s.address) as address,
+                    COALESCE(r.token_id, s.token_id) as token_id,
+                    COALESCE(r.received, 0) - COALESCE(s.sent, 0) as balance
+                FROM received_tokens r
+                FULL OUTER JOIN sent_tokens s
+                    ON r.address = s.address AND r.token_id = s.token_id
+            ),
+            authored_tokens AS (
+                SELECT LOWER(author) as address, token_id
+                FROM nfts
+            ),
+            collector_counts AS (
+                SELECT
+                    tb.address,
+                    COUNT(DISTINCT tb.token_id) as total_collected
+                FROM token_balances tb
+                LEFT JOIN authored_tokens at ON tb.address = at.address AND tb.token_id = at.token_id
+                WHERE tb.balance > 0 AND at.token_id IS NULL
+                GROUP BY tb.address
+            )
+            SELECT
+                COALESCE(cv.address, cc.address) as address,
+                COALESCE(cc.total_collected, 0)::int as total_collected,
+                (COALESCE(cv.volume_wei, 0) / 1e18)::numeric as volume_eth
+            FROM collector_volumes cv
+            FULL OUTER JOIN collector_counts cc ON cv.address = cc.address
+            WHERE COALESCE(cv.volume_wei, 0) > 0 OR COALESCE(cc.total_collected, 0) > 0
+            ORDER BY COALESCE(cv.volume_wei, 0) DESC, COALESCE(cc.total_collected, 0) DESC
+            LIMIT 10
+        `);
+
+        await pool.query(`
+            INSERT INTO leaderboards (type, data, updated_at)
+            VALUES ('collectors', $1, NOW())
+            ON CONFLICT (type) DO UPDATE SET data = $1, updated_at = NOW()
+        `, [JSON.stringify(collectorsResult.rows.map(r => ({
+            address: r.address,
+            totalCollected: r.total_collected,
+            volumeEth: parseFloat(r.volume_eth) || 0,
+        })))]);
+
+        return { artists: artistsResult.rows.length, collectors: collectorsResult.rows.length };
+    } catch (error) {
+        console.error("Failed to update leaderboards:", error.message);
+        throw error;
+    }
+}
+
+// Build complete home page cache
+async function buildHomePageCache() {
+    try {
+        // Get latest 12 NFTs with their stats (including content for preview)
+        const nftsResult = await pool.query(`
+            SELECT
+                n.token_id, n.name, n.description, n.author, n.content_type, n.content,
+                ts.total_supply, ts.floor_price, ts.listed_count, ts.total_volume,
+                ts.transfer_count, ts.last_sale_price
+            FROM nfts n
+            LEFT JOIN token_stats ts ON n.token_id = ts.token_id
+            WHERE n.content IS NOT NULL
+            ORDER BY n.token_id DESC
+            LIMIT 12
+        `);
+
+        // Get last NFT ID
+        const lastNftResult = await pool.query(
+            "SELECT MAX(token_id) as last_id FROM nfts WHERE content IS NOT NULL"
+        );
+        const lastNftId = parseInt(lastNftResult.rows[0]?.last_id, 10) || 0;
+
+        // Get stats
+        const statsResult = await pool.query(`
+            SELECT
+                COUNT(*) as total_nfts,
+                COUNT(DISTINCT author) as unique_artists
+            FROM nfts
+        `);
+
+        // Get total volume
+        const volumeResult = await pool.query(`
+            SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume_wei
+            FROM events
+            WHERE event_type = 'TokenPurchased'
+        `);
+        const totalVolumeEth = parseFloat(volumeResult.rows[0].volume_wei) / 1e18 || 0;
+
+        // Get recent events (last 10)
+        const eventsResult = await pool.query(`
+            SELECT e.event_type, e.token_id, e.block_number, e.tx_hash, e.data, n.name as title
+            FROM events e
+            LEFT JOIN nfts n ON e.token_id = n.token_id
+            ORDER BY e.block_number DESC, e.log_index DESC
+            LIMIT 10
+        `);
+
+        // Get pre-computed leaderboards
+        const artistsResult = await pool.query(
+            "SELECT data FROM leaderboards WHERE type = 'artists'"
+        );
+        const collectorsResult = await pool.query(
+            "SELECT data FROM leaderboards WHERE type = 'collectors'"
+        );
+
+        const cacheData = {
+            lastNftId,
+            nfts: nftsResult.rows.map(r => ({
+                id: r.token_id,
+                name: r.name,
+                description: r.description,
+                author: r.author,
+                contentType: r.content_type,
+                content: r.content, // Include content for immediate preview rendering
+                totalSupply: r.total_supply ? parseInt(r.total_supply, 10) : null,
+                floorPrice: r.floor_price,
+                listedCount: r.listed_count || 0,
+                totalVolume: r.total_volume || '0',
+                transferCount: r.transfer_count || 0,
+                lastSalePrice: r.last_sale_price,
+            })),
+            stats: {
+                totalTexts: parseInt(statsResult.rows[0].total_nfts, 10),
+                uniqueArtists: parseInt(statsResult.rows[0].unique_artists, 10),
+                totalVolumeEth,
+            },
+            recentEvents: eventsResult.rows.map(r => {
+                // Extract price from event data and convert wei to ETH
+                let price = null;
+                if (r.data && (r.event_type === 'TokenListed' || r.event_type === 'TokenPurchased')) {
+                    const priceWei = r.data._price;
+                    if (priceWei) {
+                        price = (parseFloat(priceWei) / 1e18).toFixed(4);
+                    }
+                }
+                return {
+                    type: r.event_type,
+                    tokenId: r.token_id,
+                    title: r.title || `#${r.token_id}`,
+                    blockNumber: r.block_number,
+                    txHash: r.tx_hash,
+                    price,
+                };
+            }),
+            topArtists: artistsResult.rows[0]?.data || [],
+            topCollectors: collectorsResult.rows[0]?.data || [],
+        };
+
+        // Store in cache table
+        await pool.query(`
+            INSERT INTO home_page_cache (id, data, last_nft_id, updated_at)
+            VALUES (1, $1, $2, NOW())
+            ON CONFLICT (id) DO UPDATE SET data = $1, last_nft_id = $2, updated_at = NOW()
+        `, [JSON.stringify(cacheData), lastNftId]);
+
+        return cacheData;
+    } catch (error) {
+        console.error("Failed to build home page cache:", error.message);
+        throw error;
+    }
+}
+
+// API: Unified home page endpoint - single call for all home data
+app.get("/api/home", async (req, res) => {
+    try {
+        // Try to get from cache first
+        const cacheResult = await pool.query(
+            "SELECT data, updated_at FROM home_page_cache WHERE id = 1"
+        );
+
+        let data;
+        let cachedAt;
+
+        if (cacheResult.rows.length > 0) {
+            data = cacheResult.rows[0].data;
+            cachedAt = cacheResult.rows[0].updated_at;
+        } else {
+            // Cache miss - build it now (first request)
+            await updateLeaderboards();
+            data = await buildHomePageCache();
+            cachedAt = new Date();
+        }
+
+        // Add freshness metadata
+        res.set("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+        res.json({
+            ...data,
+            _meta: {
+                cachedAt: cachedAt?.toISOString() || new Date().toISOString(),
+                lastSyncBlock,
+                lastSyncTime: lastSyncTime?.toISOString() || null,
+                isSyncing,
+            },
+        });
+    } catch (error) {
+        console.error("Failed to get home data:", error.message);
+        res.status(500).json({ error: "Failed to fetch home data" });
     }
 });
 
@@ -1438,7 +2139,37 @@ async function startBackgroundSync() {
         console.error("Initial sync failed:", err.message);
     }
 
-    // Start periodic sync with dynamic interval
+    // Sync marketplace listings (floor prices, supply)
+    console.log("Starting initial marketplace sync...");
+    syncMarketplaceListings()
+        .then(() => console.log("Initial marketplace sync complete"))
+        .catch(e => console.error("Marketplace sync failed:", e.message));
+
+    // Build initial home page cache
+    console.log("Building initial home page cache...");
+    try {
+        await updateLeaderboards();
+        await buildHomePageCache();
+        console.log("Home page cache built");
+    } catch (e) {
+        console.error("Initial cache build failed:", e.message);
+    }
+
+    // Start periodic marketplace sync (every 60 seconds)
+    const MARKETPLACE_SYNC_INTERVAL_MS = 60000;
+    const runMarketplaceSync = async () => {
+        try {
+            await syncMarketplaceListings();
+            // Rebuild home page cache after marketplace sync
+            await buildHomePageCache().catch(() => {});
+        } catch (e) {
+            console.error("Marketplace sync error:", e.message);
+        }
+        setTimeout(runMarketplaceSync, MARKETPLACE_SYNC_INTERVAL_MS);
+    };
+    setTimeout(runMarketplaceSync, MARKETPLACE_SYNC_INTERVAL_MS);
+
+    // Start periodic event sync with dynamic interval
     const runSync = async () => {
         try {
             const result = await syncAllEvents();
@@ -1449,6 +2180,9 @@ async function startBackgroundSync() {
                 // Update derived data if new events
                 await updateTokenStats().catch((e) => {});
                 await updateAuthorStats().catch((e) => {});
+                // Rebuild home page cache
+                await updateLeaderboards().catch((e) => {});
+                await buildHomePageCache().catch((e) => {});
             }
             // Use shorter interval during historical sync
             const nextInterval = result.needsMoreSync ? HISTORICAL_SYNC_INTERVAL_MS : SYNC_INTERVAL_MS;
