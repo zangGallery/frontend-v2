@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import DOMPurify from "dompurify";
+import Skeleton from "react-loading-skeleton";
 
 // Configure DOMPurify for safe HTML + SVG (no scripts)
 // DOMPurify's defaults already block event handlers (onclick, onerror, etc.)
@@ -42,19 +43,29 @@ const purifyConfig = {
     FORCE_BODY: true,
 };
 
-export default function HTMLViewer({ source }) {
-    const [height, setHeight] = useState(300);
+// Default height based on viewport (60% of viewport height, min 400px)
+const getDefaultHeight = () => {
+    if (typeof window !== "undefined") {
+        return Math.max(Math.round(window.innerHeight * 0.6), 400);
+    }
+    return 400;
+};
+
+export default function HTMLViewer({ source, compact = false }) {
+    const [height, setHeight] = useState(getDefaultHeight);
+    const [isLoaded, setIsLoaded] = useState(false);
     const iframeRef = useRef(null);
 
-    // Auto-resize iframe to fit content
-    const updateHeight = () => {
+    // Measure content height
+    const measureHeight = () => {
         if (iframeRef.current) {
             try {
                 const contentHeight =
                     iframeRef.current.contentWindow?.document?.body
                         ?.scrollHeight;
-                if (contentHeight && contentHeight > 50) {
-                    setHeight(Math.max(contentHeight + 32, 200)); // Add padding
+                // Use measured height if substantial, otherwise keep default
+                if (contentHeight && contentHeight > 100) {
+                    setHeight(Math.max(contentHeight + 32, getDefaultHeight()));
                 }
             } catch (e) {
                 // Cross-origin error, keep default
@@ -62,10 +73,19 @@ export default function HTMLViewer({ source }) {
         }
     };
 
-    // Update height when source changes
+    // On iframe load, measure after a delay to let content render
+    const handleLoad = () => {
+        measureHeight();
+        setTimeout(() => {
+            measureHeight();
+            setIsLoaded(true);
+        }, 150);
+    };
+
+    // Reset state when source changes
     useEffect(() => {
-        const timer = setTimeout(updateHeight, 100);
-        return () => clearTimeout(timer);
+        setIsLoaded(false);
+        setHeight(getDefaultHeight());
     }, [source]);
 
     const sanitize = (html) => {
@@ -90,20 +110,53 @@ export default function HTMLViewer({ source }) {
 </html>`;
     };
 
+    // Compact mode: simple iframe for card previews
+    if (compact) {
+        return (
+            <iframe
+                ref={iframeRef}
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    display: "block",
+                }}
+                srcDoc={sanitize(source)}
+                sandbox="allow-same-origin allow-scripts"
+                title="NFT HTML Content"
+            />
+        );
+    }
+
+    // Full mode: with loading state and auto-resize
+    const defaultHeight = getDefaultHeight();
+
     return (
-        <iframe
-            ref={iframeRef}
-            onLoad={updateHeight}
-            style={{
-                width: "100%",
-                height: `${height}px`,
-                border: "none",
-                display: "block",
-                transition: "height 0.15s ease-out",
-            }}
-            srcDoc={sanitize(source)}
-            sandbox="allow-same-origin allow-scripts"
-            title="NFT HTML Content"
-        />
+        <div style={{ minHeight: `${defaultHeight}px`, position: "relative" }}>
+            {!isLoaded && (
+                <div style={{ height: `${defaultHeight}px` }}>
+                    <Skeleton
+                        height="100%"
+                        baseColor="#27272a"
+                        highlightColor="#3f3f46"
+                    />
+                </div>
+            )}
+            <iframe
+                ref={iframeRef}
+                onLoad={handleLoad}
+                style={{
+                    width: "100%",
+                    height: isLoaded ? `${height}px` : "0",
+                    border: "none",
+                    display: "block",
+                    visibility: isLoaded ? "visible" : "hidden",
+                    position: isLoaded ? "relative" : "absolute",
+                }}
+                srcDoc={sanitize(source)}
+                sandbox="allow-same-origin allow-scripts"
+                title="NFT HTML Content"
+            />
+        </div>
     );
 }

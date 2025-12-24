@@ -1,13 +1,40 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import {
+    rainbowWallet,
+    walletConnectWallet,
+    metaMaskWallet,
+    coinbaseWallet,
+    portoWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 import { base, mainnet } from "wagmi/chains";
-import { http } from "wagmi";
+import { http, createConfig } from "wagmi";
 
 const alchemyBaseKey = import.meta.env.VITE_ALCHEMY_BASE_API_KEY;
 const alchemyMainnetKey = import.meta.env.VITE_ALCHEMY_MAINNET_API_KEY;
 
-export const config = getDefaultConfig({
-    appName: "zang.gallery",
-    projectId: "3a8170812b534d0ff9d794f19a901d64", // WalletConnect project ID
+const projectId = "3a8170812b534d0ff9d794f19a901d64"; // WalletConnect project ID
+
+const connectors = connectorsForWallets(
+    [
+        {
+            groupName: "Recommended",
+            wallets: [
+                portoWallet,
+                rainbowWallet,
+                coinbaseWallet,
+                metaMaskWallet,
+                walletConnectWallet,
+            ],
+        },
+    ],
+    {
+        appName: "zang.gallery",
+        projectId,
+    }
+);
+
+export const config = createConfig({
+    connectors,
     chains: [base, mainnet],
     transports: {
         [base.id]: alchemyBaseKey

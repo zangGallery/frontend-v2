@@ -236,8 +236,8 @@ export default function NFTCard({ id, prefetchedData }) {
                     <div className="absolute inset-0 p-4 overflow-hidden">
                         {tokenType && tokenContent !== null ? (
                             tokenType === "text/html" ? (
-                                <div className="absolute inset-0 [&>iframe]:!h-full [&>iframe]:!min-h-full">
-                                    <HTMLViewer source={tokenContent} />
+                                <div className="absolute inset-0">
+                                    <HTMLViewer source={tokenContent} compact />
                                 </div>
                             ) : tokenType === "text/markdown" ? (
                                 <div

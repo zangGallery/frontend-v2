@@ -766,75 +766,8 @@ export default function NFTPage() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Content Area - 2/3 width on large screens */}
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-2 space-y-2">
                             <div className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
-                                    {/* View Source Toggle - only for markdown and html */}
-                                    {tokenType &&
-                                        (tokenType === "text/markdown" ||
-                                            tokenType === "text/html") && (
-                                            <div className="flex justify-end px-4 pt-4">
-                                                <button
-                                                    onClick={() =>
-                                                        setShowSource(
-                                                            !showSource,
-                                                        )
-                                                    }
-                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                                        showSource
-                                                            ? "bg-ink-700 text-white"
-                                                            : "bg-ink-800/50 text-ink-400 hover:text-ink-200 hover:bg-ink-800"
-                                                    }`}
-                                                >
-                                                    {showSource ? (
-                                                        <Fragment>
-                                                            <svg
-                                                                className="w-4 h-4"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        2
-                                                                    }
-                                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                                />
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        2
-                                                                    }
-                                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                                                />
-                                                            </svg>
-                                                            View Rendered
-                                                        </Fragment>
-                                                    ) : (
-                                                        <Fragment>
-                                                            <svg
-                                                                className="w-4 h-4"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    strokeWidth={
-                                                                        2
-                                                                    }
-                                                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                                                                />
-                                                            </svg>
-                                                            View Source
-                                                        </Fragment>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        )}
                                     <div className="p-6">
                                         {tokenType &&
                                         (tokenContent ||
@@ -876,9 +809,9 @@ export default function NFTPage() {
                                                 </pre>
                                             )
                                         ) : (
-                                            <div className="h-[300px]">
+                                            <div className="min-h-[400px] h-[60vh]">
                                                 <Skeleton
-                                                    count={12}
+                                                    height="100%"
                                                     baseColor="#27272a"
                                                     highlightColor="#3f3f46"
                                                 />
@@ -886,6 +819,17 @@ export default function NFTPage() {
                                         )}
                                     </div>
                                 </div>
+                            {/* View Source Toggle - subtle link below content */}
+                            {tokenType &&
+                                (tokenType === "text/markdown" ||
+                                    tokenType === "text/html") && (
+                                    <button
+                                        onClick={() => setShowSource(!showSource)}
+                                        className="text-xs text-ink-500 hover:text-ink-300 transition-colors"
+                                    >
+                                        {showSource ? "← View rendered" : "View source →"}
+                                    </button>
+                                )}
                         </div>
 
                         {/* Info Sidebar - 1/3 width on large screens */}
