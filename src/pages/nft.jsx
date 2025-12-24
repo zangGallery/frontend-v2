@@ -398,6 +398,9 @@ export default function NFTPage() {
 
             // Check for prefetched data first (from hover on NFT card)
             const prefetched = getPrefetchedNFT(id);
+            let hasPrefetchedStats = false;
+            let hasPrefetchedRoyalty = false;
+
             if (prefetched) {
                 // Instant render with prefetched data
                 setTokenAuthor(prefetched.author);
@@ -405,6 +408,22 @@ export default function NFTPage() {
                 setTokenType(prefetched.content_type);
                 setTokenContent(prefetched.content);
                 queryBalances(prefetched.author);
+
+                // Use prefetched stats if available
+                if (prefetched._stats) {
+                    hasPrefetchedStats = true;
+                    if (prefetched._stats.totalSupply !== null) {
+                        setTotalSupply(BigInt(prefetched._stats.totalSupply));
+                    }
+                    // Use prefetched royalty if available
+                    if (prefetched._stats.royaltyBps !== null) {
+                        hasPrefetchedRoyalty = true;
+                        setRoyaltyInfo({
+                            recipient: prefetched._stats.royaltyRecipient,
+                            amount: prefetched._stats.royaltyBps / 100, // Convert bps to percentage
+                        });
+                    }
+                }
             } else {
                 // Fetch immutable data from API
                 try {
@@ -416,6 +435,22 @@ export default function NFTPage() {
                         setTokenType(apiData.content_type);
                         setTokenContent(apiData.content);
                         queryBalances(apiData.author);
+
+                        // Use stats from API response
+                        if (apiData._stats) {
+                            hasPrefetchedStats = true;
+                            if (apiData._stats.totalSupply !== null) {
+                                setTotalSupply(BigInt(apiData._stats.totalSupply));
+                            }
+                            // Use royalty from API response if available
+                            if (apiData._stats.royaltyBps !== null) {
+                                hasPrefetchedRoyalty = true;
+                                setRoyaltyInfo({
+                                    recipient: apiData._stats.royaltyRecipient,
+                                    amount: apiData._stats.royaltyBps / 100, // Convert bps to percentage
+                                });
+                            }
+                        }
                     } else if (response.status === 404) {
                         setExists(false);
                     } else {
@@ -434,9 +469,13 @@ export default function NFTPage() {
                 }
             }
 
-            // Mutable data - always fetch from RPC
-            queryRoyaltyInfo();
-            queryTotalSupply();
+            // Mutable data - fetch from RPC (skip if prefetched)
+            if (!hasPrefetchedRoyalty) {
+                queryRoyaltyInfo();
+            }
+            if (!hasPrefetchedStats) {
+                queryTotalSupply();
+            }
             queryListings();
 
             const [prevId, nextId] = await Promise.all([
@@ -1068,16 +1107,23 @@ export default function NFTPage() {
                                 )}
 
                             {/* Marketplace - listings from others */}
-                            <div className="bg-ink-900/50 rounded-2xl border border-ink-800 p-6">
-                                <Listings
-                                    isConnected={isConnected}
-                                    id={id}
-                                    walletAddress={walletAddress}
-                                    onUpdate={onUpdate}
-                                    listingGroups={listingGroups}
-                                    showOnlyOthers={true}
-                                    ethPrice={ethPrice}
-                                />
+                            <div className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
+                                <div className="px-4 py-3 border-b border-ink-800/50">
+                                    <h3 className="text-sm font-medium text-ink-300">
+                                        Marketplace
+                                    </h3>
+                                </div>
+                                <div className="p-4">
+                                    <Listings
+                                        isConnected={isConnected}
+                                        id={id}
+                                        walletAddress={walletAddress}
+                                        onUpdate={onUpdate}
+                                        listingGroups={listingGroups}
+                                        showOnlyOthers={true}
+                                        ethPrice={ethPrice}
+                                    />
+                                </div>
                             </div>
 
                             {/* Owners */}

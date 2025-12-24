@@ -38,14 +38,20 @@ DATABASE_URL=postgresql://user:pass@host:port/db  # Optional for local dev
 
 ### Running Locally
 
-**Development (uses production build + Express server):**
+**Development (hot reload + API server):**
 
 ```bash
-npm run build
-npm start
+npm run dev
 ```
 
-Server runs at http://localhost:3000
+This starts both:
+- **Vite dev server** at http://localhost:8000 (with hot reload)
+- **Express API server** at http://localhost:3000 (proxied from Vite)
+
+**Individual commands:**
+- `npm run dev:vite` - Vite only (needs separate API server)
+- `npm run dev:server` - API server only
+- `npm start` - Production server (serves built files + API)
 
 ### Testing RPC Performance
 

@@ -74,10 +74,10 @@ export default function BuyButton({
     return (
         <Fragment>
             <button
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
                     sellerBalance === 0
-                        ? "bg-ink-700 text-ink-500 cursor-not-allowed"
-                        : "bg-accent-cyan text-ink-950 hover:bg-accent-cyan/90"
+                        ? "text-ink-600 cursor-not-allowed"
+                        : "bg-white/10 text-white hover:bg-white/20"
                 }`}
                 disabled={sellerBalance === 0}
                 onClick={() => setBuyModalOpen(true)}

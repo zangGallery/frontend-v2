@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import BuyButton from "./BuyButton";
-import FulfillabilityInfo from "./FulfillabilityInfo";
-import Listing from "./Listing";
 import Address from "../components/Address";
 
 import Skeleton from "react-loading-skeleton";
@@ -17,96 +15,127 @@ export default function Listings({
     showOnlyOthers = false,
     ethPrice = null,
 }) {
-    const otherListingGroups = useMemo(() =>
-        listingGroups
-            ? listingGroups.filter(
-                  (group) => !showOnlyOthers || group.seller?.toLowerCase() !== walletAddress?.toLowerCase(),
-              )
-            : null,
-    [listingGroups, showOnlyOthers, walletAddress]);
+    // Flatten all listings with seller info, sorted by price
+    const allListings = useMemo(() => {
+        if (!listingGroups) return null;
 
-    return (
-        <div>
-            <h4 className="text-lg font-semibold text-white mb-4">
-                Marketplace
-            </h4>
-            {otherListingGroups !== null ? (
-                otherListingGroups.length > 0 ? (
-                    <div className="space-y-4">
-                        {otherListingGroups.map((group, index) => (
-                            <div
-                                key={"group" + index}
-                                className="bg-ink-800/50 rounded-xl p-4 border border-ink-700"
-                            >
-                                <div className="mb-3">
-                                    <p className="text-xs text-ink-500 uppercase tracking-wide">
-                                        Seller
-                                    </p>
-                                    <p className="font-mono text-sm text-ink-200">
-                                        <Address
-                                            address={group.seller}
-                                            shorten
-                                            nChar={8}
-                                        />
-                                    </p>
-                                </div>
-                                <FulfillabilityInfo group={group} />
-                                <div className="space-y-3 mt-4">
-                                    {group.listings.map((listing) => (
-                                        <div
-                                            key={listing.id}
-                                            className="border-t border-ink-700 pt-3 first:border-t-0 first:pt-0"
-                                        >
-                                            <Listing
-                                                price={listing.price}
-                                                amount={listing.amount}
-                                                ethPrice={ethPrice}
-                                            >
-                                                {isConnected ? (
-                                                    <BuyButton
-                                                        nftId={id}
-                                                        listingId={listing.id}
-                                                        price={listing.price}
-                                                        maxAmount={
-                                                            listing.amount
-                                                        }
-                                                        sellerBalance={
-                                                            group.sellerBalance
-                                                        }
-                                                        onUpdate={onUpdate}
-                                                    />
-                                                ) : (
-                                                    <ConnectButton.Custom>
-                                                        {({ openConnectModal }) => (
-                                                            <button
-                                                                onClick={openConnectModal}
-                                                                className="px-4 py-2 bg-accent-cyan text-ink-950 font-medium rounded-lg hover:bg-accent-cyan/90 transition-colors text-sm"
-                                                            >
-                                                                Connect to buy
-                                                            </button>
-                                                        )}
-                                                    </ConnectButton.Custom>
-                                                )}
-                                            </Listing>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-ink-500 text-center py-8">
-                        No listings available
-                    </p>
-                )
-            ) : (
+        const listings = [];
+        for (const group of listingGroups) {
+            if (showOnlyOthers && group.seller?.toLowerCase() === walletAddress?.toLowerCase()) {
+                continue;
+            }
+            for (const listing of group.listings) {
+                listings.push({
+                    ...listing,
+                    seller: group.seller,
+                    sellerBalance: group.sellerBalance,
+                });
+            }
+        }
+        return listings.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    }, [listingGroups, showOnlyOthers, walletAddress]);
+
+    const formatUsd = (ethAmount) => {
+        if (!ethPrice) return null;
+        return (parseFloat(ethAmount) * ethPrice).toFixed(2);
+    };
+
+    if (allListings === null) {
+        return (
+            <div className="space-y-3">
                 <Skeleton
-                    height={120}
-                    className="rounded-xl"
+                    height={52}
+                    className="rounded-lg"
                     baseColor="#27272a"
                     highlightColor="#3f3f46"
                 />
-            )}
+                <Skeleton
+                    height={52}
+                    className="rounded-lg"
+                    baseColor="#27272a"
+                    highlightColor="#3f3f46"
+                />
+            </div>
+        );
+    }
+
+    if (allListings.length === 0) {
+        return (
+            <div className="py-12 text-center">
+                <p className="text-ink-500 text-sm">No listings yet</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {allListings.map((listing, index) => {
+                const isFulfillable = listing.sellerBalance > 0;
+                const isPartial = listing.sellerBalance < listing.amount;
+
+                return (
+                    <div
+                        key={`${listing.seller}-${listing.id}`}
+                        className="group flex items-center justify-between py-3 px-4 -mx-4 rounded-lg hover:bg-ink-800/30 transition-colors"
+                    >
+                        {/* Left: Price and Amount */}
+                        <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-medium text-white tabular-nums">
+                                {listing.price}
+                            </span>
+                            <span className="text-sm text-ink-500">ETH</span>
+                            {ethPrice && (
+                                <span className="text-xs text-ink-600 ml-1">
+                                    (${formatUsd(listing.price)})
+                                </span>
+                            )}
+                            <span className="text-sm text-ink-500 ml-3">
+                                ×{listing.amount}
+                            </span>
+                        </div>
+
+                        {/* Right: Seller, Status, Action */}
+                        <div className="flex items-center gap-4">
+                            {/* Seller */}
+                            <span className="hidden sm:inline text-xs text-ink-500 font-mono">
+                                <Address address={listing.seller} shorten nChar={6} />
+                            </span>
+
+                            {/* Status */}
+                            {!isFulfillable ? (
+                                <span className="text-xs text-ink-600">Unavailable</span>
+                            ) : isPartial ? (
+                                <span className="text-xs text-amber-500/80">
+                                    {listing.sellerBalance} left
+                                </span>
+                            ) : null}
+
+                            {/* Action */}
+                            {isConnected ? (
+                                <BuyButton
+                                    nftId={id}
+                                    listingId={listing.id}
+                                    price={listing.price}
+                                    maxAmount={listing.amount}
+                                    sellerBalance={listing.sellerBalance}
+                                    onUpdate={onUpdate}
+                                />
+                            ) : (
+                                <ConnectButton.Custom>
+                                    {({ openConnectModal }) => (
+                                        <button
+                                            onClick={openConnectModal}
+                                            className="text-xs text-accent-cyan hover:text-accent-cyan/80 transition-colors"
+                                        >
+                                            Connect
+                                        </button>
+                                    )}
+                                </ConnectButton.Custom>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }

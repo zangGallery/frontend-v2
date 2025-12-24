@@ -135,6 +135,8 @@ async function initializeDatabase() {
                 ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS floor_price TEXT;
                 ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS listed_count INTEGER DEFAULT 0;
                 ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS total_volume TEXT DEFAULT '0';
+                ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS royalty_recipient VARCHAR(42);
+                ALTER TABLE token_stats ADD COLUMN IF NOT EXISTS royalty_bps INTEGER;
             EXCEPTION WHEN others THEN NULL;
             END $$;
         `);
@@ -509,7 +511,29 @@ app.get("/api/nft/:id", async (req, res) => {
             return res.status(400).json({ error: "Invalid token ID" });
         }
 
-        const nft = await getNFTData(tokenId);
+        // Fetch NFT data and stats in parallel
+        const [nft, statsResult] = await Promise.all([
+            getNFTData(tokenId),
+            pool.query(
+                `SELECT total_supply, floor_price, listed_count, total_volume, royalty_recipient, royalty_bps
+                 FROM token_stats WHERE token_id = $1`,
+                [tokenId]
+            ),
+        ]);
+
+        // Merge stats into response
+        const stats = statsResult.rows[0];
+        if (stats) {
+            nft._stats = {
+                totalSupply: stats.total_supply ? parseInt(stats.total_supply, 10) : null,
+                floorPrice: stats.floor_price,
+                listedCount: stats.listed_count || 0,
+                totalVolume: stats.total_volume || '0',
+                royaltyRecipient: stats.royalty_recipient || null,
+                royaltyBps: stats.royalty_bps !== null ? stats.royalty_bps : null,
+            };
+        }
+
         res.json(nft);
     } catch (error) {
         if (
@@ -651,6 +675,19 @@ const ZANG_READ_ABI = [
         name: "totalSupply",
         inputs: [{ name: "_tokenId", type: "uint256" }],
         outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+    },
+    {
+        type: "function",
+        name: "royaltyInfo",
+        inputs: [
+            { name: "_tokenId", type: "uint256" },
+            { name: "_salePrice", type: "uint256" },
+        ],
+        outputs: [
+            { name: "", type: "address" },
+            { name: "", type: "uint256" },
+        ],
         stateMutability: "view",
     },
 ];
@@ -994,8 +1031,8 @@ async function syncMarketplaceListings() {
 
             await Promise.all(batch.map(async ({ token_id }) => {
                 try {
-                    // Get total supply and listing count in parallel
-                    const [totalSupply, listingCount] = await Promise.all([
+                    // Get total supply, listing count, and royalty info in parallel
+                    const [totalSupply, listingCount, royaltyResult] = await Promise.all([
                         publicClient.readContract({
                             address: ZANG_CONTRACT,
                             abi: ZANG_READ_ABI,
@@ -1008,7 +1045,17 @@ async function syncMarketplaceListings() {
                             functionName: "listingCount",
                             args: [BigInt(token_id)],
                         }),
+                        publicClient.readContract({
+                            address: ZANG_CONTRACT,
+                            abi: ZANG_READ_ABI,
+                            functionName: "royaltyInfo",
+                            args: [BigInt(token_id), 10000n], // 10000 basis = 100%
+                        }),
                     ]);
+
+                    // Extract royalty info: [recipient, amount in basis points]
+                    const royaltyRecipient = royaltyResult[0];
+                    const royaltyBps = Number(royaltyResult[1]);
 
                     const count = Number(listingCount);
                     let floorPrice = null;
@@ -1052,15 +1099,17 @@ async function syncMarketplaceListings() {
 
                     // Update token_stats
                     await pool.query(`
-                        INSERT INTO token_stats (token_id, total_supply, floor_price, listed_count, total_volume, updated_at)
-                        VALUES ($1, $2, $3, $4, $5, NOW())
+                        INSERT INTO token_stats (token_id, total_supply, floor_price, listed_count, total_volume, royalty_recipient, royalty_bps, updated_at)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
                         ON CONFLICT (token_id) DO UPDATE SET
                             total_supply = $2,
                             floor_price = $3,
                             listed_count = $4,
                             total_volume = $5,
+                            royalty_recipient = $6,
+                            royalty_bps = $7,
                             updated_at = NOW()
-                    `, [token_id, Number(totalSupply), floorPrice, listedCount, totalVolume]);
+                    `, [token_id, Number(totalSupply), floorPrice, listedCount, totalVolume, royaltyRecipient, royaltyBps]);
 
                     synced++;
                 } catch (e) {
