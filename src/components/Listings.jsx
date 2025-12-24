@@ -76,9 +76,9 @@ export default function Listings({
                 return (
                     <div
                         key={`${listing.seller}-${listing.id}`}
-                        className="group flex items-center justify-between py-3 px-4 -mx-4 rounded-lg hover:bg-ink-800/30 transition-colors"
+                        className="group grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 py-3 px-4 -mx-4 rounded-lg hover:bg-ink-800/30 transition-colors"
                     >
-                        {/* Left: Price and Amount */}
+                        {/* Price */}
                         <div className="flex items-baseline gap-1.5">
                             <span className="text-base font-medium text-white tabular-nums">
                                 {listing.price}
@@ -89,29 +89,31 @@ export default function Listings({
                                     (${formatUsd(listing.price)})
                                 </span>
                             )}
-                            <span className="text-sm text-ink-500 ml-3">
+                        </div>
+
+                        {/* Amount - fixed width */}
+                        <div className="w-12 text-right">
+                            <span className="text-sm text-ink-500 tabular-nums">
                                 ×{listing.amount}
                             </span>
                         </div>
 
-                        {/* Right: Seller, Status, Action */}
-                        <div className="flex items-center gap-4">
-                            {/* Seller */}
-                            <span className="hidden sm:inline text-xs text-ink-500 font-mono">
+                        {/* Seller */}
+                        <div className="hidden sm:block w-24 text-right">
+                            <span className="text-xs text-ink-500 font-mono">
                                 <Address address={listing.seller} shorten nChar={6} />
                             </span>
+                        </div>
 
-                            {/* Status */}
+                        {/* Action */}
+                        <div className="flex items-center justify-end gap-2 w-20">
                             {!isFulfillable ? (
                                 <span className="text-xs text-ink-600">Unavailable</span>
                             ) : isPartial ? (
                                 <span className="text-xs text-amber-500/80">
                                     {listing.sellerBalance} left
                                 </span>
-                            ) : null}
-
-                            {/* Action */}
-                            {isConnected ? (
+                            ) : isConnected ? (
                                 <BuyButton
                                     nftId={id}
                                     listingId={listing.id}
