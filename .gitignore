@@ -4,4 +4,4 @@ public
 .next
 .env
 .env*
-known_hosts
+known_hostsdist
