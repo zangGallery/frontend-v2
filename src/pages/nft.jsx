@@ -707,59 +707,35 @@ export default function NFTPage() {
 
             {exists ? (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    {/* Navigation Arrows */}
-                    <div className="flex justify-between items-center mb-6">
+                    {/* Navigation - compact inline, hidden on mobile */}
+                    <div className="hidden sm:flex items-center gap-1 mb-4 text-ink-500">
                         <button
                             onClick={changeId(false)}
                             disabled={!prevValidId}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                            className={`p-1 rounded transition-colors ${
                                 prevValidId
-                                    ? "text-ink-300 hover:text-white hover:bg-ink-800"
+                                    ? "hover:text-white hover:bg-ink-800/50"
                                     : "text-ink-700 cursor-not-allowed"
                             }`}
+                            title="Previous"
                         >
-                            <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M15 19l-7-7 7-7"
-                                />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
-                            <span className="hidden sm:inline">Previous</span>
                         </button>
-
-                        <span className="text-ink-500 font-mono text-sm">
-                            #{id}
-                        </span>
-
+                        <span className="font-mono text-sm px-1">#{id}</span>
                         <button
                             onClick={changeId(true)}
                             disabled={!nextValidId}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                            className={`p-1 rounded transition-colors ${
                                 nextValidId
-                                    ? "text-ink-300 hover:text-white hover:bg-ink-800"
+                                    ? "hover:text-white hover:bg-ink-800/50"
                                     : "text-ink-700 cursor-not-allowed"
                             }`}
+                            title="Next"
                         >
-                            <span className="hidden sm:inline">Next</span>
-                            <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 5l7 7-7 7"
-                                />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
                     </div>
