@@ -9,6 +9,15 @@ import {
 import { base, mainnet } from "wagmi/chains";
 import { http, createConfig } from "wagmi";
 
+// Custom Base chain with optimized fee settings
+const baseOptimized = {
+    ...base,
+    fees: {
+        // Base L2 has very low fees - we only need minimal priority fee
+        defaultPriorityFee: 10n, // 10 wei
+    },
+};
+
 const alchemyBaseKey = import.meta.env.VITE_ALCHEMY_BASE_API_KEY;
 const alchemyMainnetKey = import.meta.env.VITE_ALCHEMY_MAINNET_API_KEY;
 
@@ -35,7 +44,7 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
     connectors,
-    chains: [base, mainnet],
+    chains: [baseOptimized, mainnet],
     transports: {
         [base.id]: alchemyBaseKey
             ? http(`https://base-mainnet.g.alchemy.com/v2/${alchemyBaseKey}`)
