@@ -137,32 +137,12 @@ const validMarkdown = {
     },
 };
 
-const validHTML = {
-    ...rehypeDefaultSchema,
-    tagNames: [...rehypeDefaultSchema.tagNames, "style"],
-    protocols: {
-        ...rehypeDefaultSchema.protocols,
-        src: [...rehypeDefaultSchema.protocols.src, "data"],
-    },
-    attributes: {
-        ...rehypeDefaultSchema.attributes,
-        "*": [
-            ...rehypeDefaultSchema.attributes["*"],
-            "class",
-            "className",
-            "style",
-        ],
-    },
-    clobber: [],
-};
-
 export default {
     burn,
     buy,
     edit,
     editRoyalty,
     list,
-    validHTML,
     validMarkdown,
     mint,
     transfer,

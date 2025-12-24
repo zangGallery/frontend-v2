@@ -36,6 +36,7 @@
         "buffer": "^6.0.3",
         "compression": "^1.7.4",
         "decimal.js": "^10.4.0",
+        "dompurify": "^3.3.1",
         "dotenv": "^16.3.0",
         "ethereum-blockies-base64": "^1.0.2",
         "express": "^4.22.1",

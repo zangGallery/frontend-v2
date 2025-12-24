@@ -59,12 +59,12 @@ export default function MultiEditor({ textType, value, setValue }) {
                 <div className="space-y-3">
                     <HTMLEditor value={value} setValue={setValue} />
                     <div className="flex items-center gap-2 p-3 bg-ink-900/50 rounded-lg border border-ink-800">
-                        <span className="text-amber-400 text-lg">
-                            {"<Fragment>"}
+                        <span className="text-amber-400 font-mono text-sm">
+                            {"</>"}
                         </span>
                         <p className="text-sm text-ink-400">
-                            Write HTML with inline CSS. External resources and
-                            scripts are sanitized for security.
+                            HTML + CSS + SVG supported. Scripts and event handlers are
+                            sanitized for security.
                         </p>
                     </div>
                 </div>

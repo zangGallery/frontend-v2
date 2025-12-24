@@ -938,11 +938,12 @@ export default function NFTPage() {
                                     )}
                                 </div>
 
-                                {tokenData?.description !== undefined &&
-                                tokenData?.description !== null ? (
-                                    <p className="text-ink-300 text-sm italic">
-                                        {tokenData.description}
-                                    </p>
+                                {tokenData ? (
+                                    tokenData.description && (
+                                        <p className="text-ink-300 text-sm italic">
+                                            {tokenData.description}
+                                        </p>
+                                    )
                                 ) : (
                                     <Skeleton
                                         count={2}

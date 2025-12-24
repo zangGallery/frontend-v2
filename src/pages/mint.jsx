@@ -321,6 +321,43 @@ export default function Mint() {
                             ))}
                         </div>
                         <input type="hidden" {...register("textType")} />
+
+                        {/* HTML Guidelines */}
+                        {watchTextType === "text/html" && (
+                            <div className="p-4 bg-ink-900/70 rounded-lg border border-ink-700 space-y-3">
+                                <div className="flex items-center gap-2 text-amber-400">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="font-medium text-sm">HTML Content Guidelines</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <p className="text-green-400 font-medium mb-1.5">Allowed</p>
+                                        <ul className="text-ink-400 space-y-1">
+                                            <li>• All HTML elements (div, span, p, etc.)</li>
+                                            <li>• SVG graphics (svg, path, rect, circle...)</li>
+                                            <li>• CSS styles and animations</li>
+                                            <li>• Images with https:// or data: URLs</li>
+                                            <li>• Custom fonts via @import</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <p className="text-red-400 font-medium mb-1.5">Not Allowed</p>
+                                        <ul className="text-ink-400 space-y-1">
+                                            <li>• JavaScript (script tags)</li>
+                                            <li>• Event handlers (onclick, onerror...)</li>
+                                            <li>• Forms and inputs</li>
+                                            <li>• Iframes and embeds</li>
+                                            <li>• External links (javascript: URLs)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <p className="text-ink-500 text-xs">
+                                    Content is sanitized for security. CSS animations work without JavaScript.
+                                </p>
+                            </div>
+                        )}
                     </section>
 
                     {/* Step 2: Write Content */}

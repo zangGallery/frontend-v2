@@ -1,9 +1,46 @@
 import React, { useState, useRef, useEffect } from "react";
-import { unified } from "unified";
-import rehypeParse from "rehype-parse";
-import rehypeSanitize from "rehype-sanitize";
-import { schemas } from "../common";
-import rehypeStringify from "rehype-stringify";
+import DOMPurify from "dompurify";
+
+// Configure DOMPurify for safe HTML + SVG (no scripts)
+// DOMPurify's defaults already block event handlers (onclick, onerror, etc.)
+// and sanitize dangerous URLs (javascript:, data: in wrong contexts)
+// Explicit allowlist of safe HTML/SVG tags (style is critical for artwork CSS)
+const ALLOWED_TAGS = [
+    // HTML structural
+    "html", "head", "body", "div", "span", "p", "br", "hr",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "dl", "dt", "dd",
+    "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption",
+    "article", "section", "nav", "aside", "header", "footer", "main",
+    "figure", "figcaption", "details", "summary",
+    // Text formatting
+    "a", "strong", "b", "em", "i", "u", "s", "mark", "small", "sub", "sup",
+    "blockquote", "q", "cite", "code", "pre", "kbd", "var", "samp",
+    // Media
+    "img", "audio", "video", "source", "track", "picture",
+    // CSS - critical for artwork styling
+    "style",
+    // SVG elements
+    "svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+    "text", "tspan", "textPath", "defs", "use", "symbol", "clipPath", "mask",
+    "pattern", "linearGradient", "radialGradient", "stop", "filter",
+    "feGaussianBlur", "feOffset", "feBlend", "feColorMatrix", "feComposite",
+    "feMerge", "feMergeNode", "feFlood", "image", "title", "desc",
+];
+
+const purifyConfig = {
+    ALLOWED_TAGS,
+    // Allow common attributes
+    ADD_ATTR: ["class", "style", "target", "viewBox", "xmlns", "fill", "stroke",
+        "stroke-width", "d", "x", "y", "width", "height", "cx", "cy", "r", "rx", "ry",
+        "x1", "y1", "x2", "y2", "points", "transform", "opacity", "id", "href",
+        "xlink:href", "offset", "stop-color", "stop-opacity", "gradientUnits",
+        "gradientTransform", "spreadMethod", "preserveAspectRatio", "clip-path",
+        "filter", "mask", "font-size", "font-family", "text-anchor", "dominant-baseline"],
+    // FORCE_BODY prevents style tags from being stripped when at start of content
+    // See: https://github.com/cure53/DOMPurify/issues/804
+    FORCE_BODY: true,
+};
 
 export default function HTMLViewer({ source }) {
     const [height, setHeight] = useState(300);
@@ -32,11 +69,7 @@ export default function HTMLViewer({ source }) {
     }, [source]);
 
     const sanitize = (html) => {
-        const sanitized = unified()
-            .use(rehypeParse, { fragment: true })
-            .use(rehypeSanitize, schemas.validHTML)
-            .use(rehypeStringify)
-            .processSync(html);
+        const sanitized = DOMPurify.sanitize(html, purifyConfig);
         // Minimal wrapper - only set defaults that user can override
         return `<!DOCTYPE html>
 <html>
@@ -53,7 +86,7 @@ export default function HTMLViewer({ source }) {
         }
     </style>
 </head>
-<body>${String(sanitized)}</body>
+<body>${sanitized}</body>
 </html>`;
     };
 
@@ -69,7 +102,7 @@ export default function HTMLViewer({ source }) {
                 display: "block",
             }}
             srcDoc={sanitize(source)}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-same-origin allow-scripts"
             title="NFT HTML Content"
         />
     );
