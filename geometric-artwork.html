@@ -1,0 +1,216 @@
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        min-height: 100vh;
+        background: #08080a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .c {
+        position: relative;
+        width: 500px;
+        height: 500px;
+    }
+    .core {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 6px; height: 6px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow:
+            0 0 15px 8px rgba(255,255,255,0.5),
+            0 0 40px 20px rgba(180,160,255,0.3),
+            0 0 80px 40px rgba(120,100,200,0.15);
+        animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: translate(-50%,-50%) scale(1); }
+        50% { transform: translate(-50%,-50%) scale(1.5); }
+    }
+    .ring {
+        position: absolute;
+        top: 50%; left: 50%;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.06);
+        animation: breathe 5s ease-in-out infinite;
+    }
+    .r1 { width: 80px; height: 80px; margin: -40px 0 0 -40px; animation-delay: 0s; }
+    .r2 { width: 140px; height: 140px; margin: -70px 0 0 -70px; animation-delay: 0.3s; }
+    .r3 { width: 200px; height: 200px; margin: -100px 0 0 -100px; animation-delay: 0.6s; }
+    .r4 { width: 260px; height: 260px; margin: -130px 0 0 -130px; animation-delay: 0.9s; }
+    .r5 { width: 320px; height: 320px; margin: -160px 0 0 -160px; animation-delay: 1.2s; }
+    .r6 { width: 380px; height: 380px; margin: -190px 0 0 -190px; animation-delay: 1.5s; }
+    @keyframes breathe {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.02); opacity: 1; }
+    }
+    .shape {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform-origin: center;
+    }
+    .shape svg {
+        overflow: visible;
+        display: block;
+    }
+    .shape path, .shape polygon, .shape rect {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+    .star {
+        width: 140px; height: 140px;
+        margin: -70px 0 0 -70px;
+        animation: spin1 25s linear infinite;
+    }
+    .star path { stroke: rgba(180,150,255,0.7); stroke-width: 1; }
+    .hex1 {
+        width: 220px; height: 220px;
+        margin: -110px 0 0 -110px;
+        animation: spin2 35s linear infinite;
+    }
+    .hex1 path { stroke: rgba(100,180,255,0.5); stroke-width: 0.8; }
+    .hex2 {
+        width: 220px; height: 220px;
+        margin: -110px 0 0 -110px;
+        animation: spin1 35s linear infinite;
+    }
+    .hex2 path { stroke: rgba(100,180,255,0.35); stroke-width: 0.8; }
+    .sq1 {
+        width: 180px; height: 180px;
+        margin: -90px 0 0 -90px;
+        animation: spin1 30s linear infinite;
+    }
+    .sq1 rect { stroke: rgba(255,150,180,0.4); stroke-width: 0.8; }
+    .sq2 {
+        width: 180px; height: 180px;
+        margin: -90px 0 0 -90px;
+        animation: spin2 30s linear infinite;
+    }
+    .sq2 rect { stroke: rgba(255,150,180,0.35); stroke-width: 0.8; }
+    .oct {
+        width: 320px; height: 320px;
+        margin: -160px 0 0 -160px;
+        animation: spin1 45s linear infinite;
+    }
+    .oct path { stroke: rgba(150,200,255,0.35); stroke-width: 0.6; }
+    .tri1 {
+        width: 440px; height: 440px;
+        margin: -220px 0 0 -220px;
+        animation: spin2 55s linear infinite;
+    }
+    .tri1 path { stroke: rgba(255,255,255,0.12); stroke-width: 0.5; }
+    .tri2 {
+        width: 440px; height: 440px;
+        margin: -220px 0 0 -220px;
+        animation: spin1 55s linear infinite;
+    }
+    .tri2 path { stroke: rgba(255,255,255,0.12); stroke-width: 0.5; }
+    .dode {
+        width: 460px; height: 460px;
+        margin: -230px 0 0 -230px;
+        animation: spin2 70s linear infinite;
+    }
+    .dode path { stroke: rgba(200,170,255,0.2); stroke-width: 0.5; }
+    @keyframes spin1 {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    @keyframes spin2 {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(-360deg); }
+    }
+    .dot {
+        position: absolute;
+        width: 2px; height: 2px;
+        background: rgba(255,255,255,0.5);
+        border-radius: 50%;
+        animation: drift 8s ease-in-out infinite;
+    }
+    .d1 { top: 10%; left: 15%; animation-delay: 0s; }
+    .d2 { top: 20%; left: 82%; animation-delay: 1s; }
+    .d3 { top: 75%; left: 12%; animation-delay: 2s; }
+    .d4 { top: 85%; left: 78%; animation-delay: 3s; }
+    .d5 { top: 8%; left: 50%; animation-delay: 1.5s; }
+    .d6 { top: 92%; left: 45%; animation-delay: 4s; }
+    @keyframes drift {
+        0%, 100% { transform: translate(0,0); opacity: 0.3; }
+        50% { transform: translate(6px,-10px); opacity: 0.8; }
+    }
+</style>
+
+<div class="c">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+    <div class="ring r3"></div>
+    <div class="ring r4"></div>
+    <div class="ring r5"></div>
+    <div class="ring r6"></div>
+
+    <div class="shape dode">
+        <svg viewBox="0 0 100 100">
+            <path d="M50 2 L75 6.7 L93.3 25 L98 50 L93.3 75 L75 93.3 L50 98 L25 93.3 L6.7 75 L2 50 L6.7 25 L25 6.7 Z"/>
+        </svg>
+    </div>
+
+    <div class="shape tri1">
+        <svg viewBox="0 0 100 100">
+            <path d="M50 8 L92 85 L8 85 Z"/>
+        </svg>
+    </div>
+
+    <div class="shape tri2">
+        <svg viewBox="0 0 100 100">
+            <path d="M50 92 L8 15 L92 15 Z"/>
+        </svg>
+    </div>
+
+    <div class="shape oct">
+        <svg viewBox="0 0 100 100">
+            <path d="M30 5 L70 5 L95 30 L95 70 L70 95 L30 95 L5 70 L5 30 Z"/>
+        </svg>
+    </div>
+
+    <div class="shape sq1">
+        <svg viewBox="0 0 100 100">
+            <rect x="5" y="5" width="90" height="90"/>
+        </svg>
+    </div>
+
+    <div class="shape sq2">
+        <svg viewBox="0 0 100 100" style="transform: rotate(45deg)">
+            <rect x="5" y="5" width="90" height="90"/>
+        </svg>
+    </div>
+
+    <div class="shape hex1">
+        <svg viewBox="0 0 100 100">
+            <path d="M50 5 L93 27.5 L93 72.5 L50 95 L7 72.5 L7 27.5 Z"/>
+        </svg>
+    </div>
+
+    <div class="shape hex2">
+        <svg viewBox="0 0 100 100">
+            <path d="M27.5 7 L72.5 7 L95 50 L72.5 93 L27.5 93 L5 50 Z"/>
+        </svg>
+    </div>
+
+    <div class="shape star">
+        <svg viewBox="0 0 100 100">
+            <path d="M50 12 L85 75 L15 75 Z"/>
+            <path d="M50 88 L15 25 L85 25 Z"/>
+        </svg>
+    </div>
+
+    <div class="core"></div>
+
+    <div class="dot d1"></div>
+    <div class="dot d2"></div>
+    <div class="dot d3"></div>
+    <div class="dot d4"></div>
+    <div class="dot d5"></div>
+    <div class="dot d6"></div>
+</div>

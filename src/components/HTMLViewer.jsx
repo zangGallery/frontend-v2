@@ -63,9 +63,9 @@ export default function HTMLViewer({ source, compact = false }) {
                 const contentHeight =
                     iframeRef.current.contentWindow?.document?.body
                         ?.scrollHeight;
-                // Use measured height if substantial, otherwise keep default
+                // Use measured height - allow shorter content to shrink container
                 if (contentHeight && contentHeight > 100) {
-                    setHeight(Math.max(contentHeight + 32, getDefaultHeight()));
+                    setHeight(contentHeight + 32);
                 }
             } catch (e) {
                 // Cross-origin error, keep default
@@ -132,7 +132,7 @@ export default function HTMLViewer({ source, compact = false }) {
     const defaultHeight = getDefaultHeight();
 
     return (
-        <div style={{ minHeight: `${defaultHeight}px`, position: "relative" }}>
+        <div style={{ position: "relative" }}>
             {!isLoaded && (
                 <div style={{ height: `${defaultHeight}px` }}>
                     <Skeleton
