@@ -1,9 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { viteCommonjs } from "@originjs/vite-plugin-commonjs";
 
 export default defineConfig({
     plugins: [
+        viteCommonjs(),
         react(),
         nodePolyfills({
             include: ["buffer", "crypto", "stream", "util", "process"],
@@ -40,9 +42,6 @@ export default defineConfig({
     },
     optimizeDeps: {
         exclude: [
-            '@base-org/account',
-            '@gemini-wallet/core',
-            '@metamask/sdk',
             '@safe-global/safe-apps-sdk',
             '@safe-global/safe-apps-provider',
         ],

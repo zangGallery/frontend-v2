@@ -89,14 +89,19 @@ DATABASE_URL=postgresql://...                  # PostgreSQL connection string
 
 ```
 src/
-  common/        # Shared utilities (provider, abi, ens, etc.)
-  components/    # React components
-  pages/         # Page components (index, nft, mint, vault, etc.)
-  styles/        # CSS/Tailwind styles
+  common/           # Shared utilities
+    abi.js          # Contract ABIs
+    ens.js          # ENS resolution
+    prefetch.js     # Hover prefetch cache
+    provider.js     # viem client setup
+    socket.js       # WebSocket hooks
+  components/       # React components
+  pages/            # Page components (index, nft, mint, profile, etc.)
+  styles/           # CSS/Tailwind styles
 scripts/
-  test-rpc.mjs   # Playwright RPC performance tests
-server.cjs       # Express production server with DB caching
-vite.config.js   # Vite configuration
+  test-rpc.mjs      # Playwright RPC performance tests
+server.cjs          # Express production server with DB caching
+vite.config.js      # Vite configuration
 ```
 
 ## Database Caching Layer
@@ -153,3 +158,23 @@ The server syncs new blockchain events every 30 seconds. On startup:
 Real-time updates are pushed to connected clients:
 - `newEvents` - New blockchain events as they're synced
 - `syncComplete` - Sync finished notification
+
+## Performance Optimizations
+
+### Hover Prefetching
+
+Inspired by [McMaster-Carr's instant page loads](https://dev.to/svsharma/the-surprising-tech-behind-mcmaster-carrs-blazing-fast-website-speed-bfc), the app prefetches NFT data on hover:
+
+1. **NFT Card Hover**: When hovering over an NFT card, `/api/nft/:id` is fetched in the background
+2. **Instant Navigation**: By the time user clicks, data is already cached in memory
+3. **Adjacent NFT Prefetch**: On NFT pages, prev/next NFTs are prefetched automatically
+
+This creates a perception of instant page loads. See `src/common/prefetch.js` for implementation.
+
+### Vite Configuration
+
+The project uses several Vite plugins to handle complex dependencies:
+
+- **vite-plugin-commonjs**: Converts CJS modules to ESM (required for @metamask packages)
+- **vite-plugin-node-polyfills**: Provides Node.js polyfills for browser environment
+- **Manual chunks**: Code splitting for optimal loading (react-vendor, web3-core, rainbowkit, md-editor)

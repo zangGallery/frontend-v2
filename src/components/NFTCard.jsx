@@ -9,6 +9,7 @@ import MDEditor from "@uiw/react-md-editor";
 import rehypeSanitize from "rehype-sanitize";
 import schemas from "../common/schemas";
 import { isTokenExistenceError } from "../common/error";
+import { prefetchNFT } from "../common/prefetch";
 import HTMLViewer from "./HTMLViewer";
 import Address from "./Address";
 import Skeleton from "react-loading-skeleton";
@@ -212,12 +213,14 @@ export default function NFTCard({ id, prefetchedData }) {
             handleClick();
         }
     };
+    const handleMouseEnter = () => prefetchNFT(id);
 
     return (
         <div
             className="group relative cursor-pointer"
             onClick={handleClick}
             onKeyDown={handleKeyDown}
+            onMouseEnter={handleMouseEnter}
             role="button"
             tabIndex={0}
         >

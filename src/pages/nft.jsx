@@ -42,6 +42,7 @@ import Address from "../components/Address";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 import makeBlockie from "ethereum-blockies-base64";
 import { useSyncStatus, useTokenEvents } from "../common/socket";
+import { getPrefetchedNFT, prefetchNFTs } from "../common/prefetch";
 
 import hljs from "highlight.js/lib/core";
 import html from "highlight.js/lib/languages/xml";
@@ -395,32 +396,42 @@ export default function NFTPage() {
             // Fetch lastNFTId first so prev/next queries can use it
             const fetchedLastNFTId = await queryLastNFTId();
 
-            // Fetch immutable data from API (cached)
-            try {
-                const response = await fetch(`/api/nft/${id}`);
-                if (response.ok) {
-                    const apiData = await response.json();
-                    setTokenAuthor(apiData.author);
-                    setTokenData({ name: apiData.name, description: apiData.description, text_uri: apiData.text_uri });
-                    setTokenType(apiData.content_type);
-                    setTokenContent(apiData.content);
-                    // Fetch balances with author from API
-                    queryBalances(apiData.author);
-                } else if (response.status === 404) {
-                    setExists(false);
-                } else {
-                    // Fallback to RPC if API fails
+            // Check for prefetched data first (from hover on NFT card)
+            const prefetched = getPrefetchedNFT(id);
+            if (prefetched) {
+                // Instant render with prefetched data
+                setTokenAuthor(prefetched.author);
+                setTokenData({ name: prefetched.name, description: prefetched.description, text_uri: prefetched.text_uri });
+                setTokenType(prefetched.content_type);
+                setTokenContent(prefetched.content);
+                queryBalances(prefetched.author);
+            } else {
+                // Fetch immutable data from API
+                try {
+                    const response = await fetch(`/api/nft/${id}`);
+                    if (response.ok) {
+                        const apiData = await response.json();
+                        setTokenAuthor(apiData.author);
+                        setTokenData({ name: apiData.name, description: apiData.description, text_uri: apiData.text_uri });
+                        setTokenType(apiData.content_type);
+                        setTokenContent(apiData.content);
+                        queryBalances(apiData.author);
+                    } else if (response.status === 404) {
+                        setExists(false);
+                    } else {
+                        // Fallback to RPC if API fails
+                        queryTokenURI()
+                            .then((tURI) => queryTokenData(tURI))
+                            .then((newTokenData) => queryTokenContent(newTokenData));
+                        queryTokenAuthor().then((author) => queryBalances(author));
+                    }
+                } catch (e) {
+                    // Fallback to RPC if API unavailable
                     queryTokenURI()
                         .then((tURI) => queryTokenData(tURI))
                         .then((newTokenData) => queryTokenContent(newTokenData));
                     queryTokenAuthor().then((author) => queryBalances(author));
                 }
-            } catch (e) {
-                // Fallback to RPC if API unavailable
-                queryTokenURI()
-                    .then((tURI) => queryTokenData(tURI))
-                    .then((newTokenData) => queryTokenContent(newTokenData));
-                queryTokenAuthor().then((author) => queryBalances(author));
             }
 
             // Mutable data - always fetch from RPC
@@ -434,6 +445,9 @@ export default function NFTPage() {
             ]);
             setPrevValidId(prevId);
             setNextValidId(nextId);
+
+            // Prefetch adjacent NFTs for instant prev/next navigation
+            prefetchNFTs([prevId, nextId].filter(Boolean));
         };
         loadNftData();
     }, [id]);
