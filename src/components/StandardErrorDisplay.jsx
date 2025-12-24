@@ -1,9 +1,21 @@
+import { useMemo } from "react";
 import { useRecoilState } from "recoil";
 import { standardErrorState } from "../common/error";
+
+// Sanitize any API keys from error messages
+const sanitizeError = (msg) => {
+    if (!msg || typeof msg !== 'string') return msg;
+    return msg
+        .replace(/https:\/\/[^/]+\.alchemy\.com\/v2\/[a-zA-Z0-9_-]+/g, 'https://[RPC]')
+        .replace(/https:\/\/[^/]+\.infura\.io\/v3\/[a-zA-Z0-9_-]+/g, 'https://[RPC]')
+        .replace(/https:\/\/[^/]+\.quiknode\.pro\/[a-zA-Z0-9_-]+/g, 'https://[RPC]');
+};
 
 export default function StandardErrorDisplay() {
     const [standardError, setStandardError] =
         useRecoilState(standardErrorState);
+
+    const displayError = useMemo(() => sanitizeError(standardError), [standardError]);
 
     if (!standardError) {
         return null;
@@ -26,9 +38,9 @@ export default function StandardErrorDisplay() {
                     />
                 </svg>
                 <div className="flex-1">
-                    <p className="text-red-400 text-sm">
+                    <p className="text-red-400 text-sm break-all">
                         <span className="font-semibold">Error:</span>{" "}
-                        {standardError}
+                        {displayError}
                     </p>
                 </div>
                 <button
