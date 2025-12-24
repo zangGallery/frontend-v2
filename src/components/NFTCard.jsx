@@ -307,7 +307,7 @@ export default function NFTCard({ id, prefetchedData }) {
                     </div>
 
                     {/* Stats row */}
-                    <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                    <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1.5 text-xs">
                         {totalSupply !== null ? (
                             <span className="text-ink-500 whitespace-nowrap">
                                 {totalSupply} ed.
@@ -333,7 +333,7 @@ export default function NFTCard({ id, prefetchedData }) {
                             <Fragment>
                                 <span className="text-ink-700">·</span>
                                 <span className="text-green-400 whitespace-nowrap font-mono">
-                                    {floorPrice} Ξ
+                                    {floorPrice < 0.0001 ? "<0.0001" : floorPrice.toFixed(4).replace(/\.?0+$/, "")} Ξ
                                 </span>
                             </Fragment>
                         )}
@@ -342,7 +342,7 @@ export default function NFTCard({ id, prefetchedData }) {
                             <Fragment>
                                 <span className="text-ink-700">·</span>
                                 <span className="text-ink-400 whitespace-nowrap font-mono">
-                                    {totalVolume.toFixed(4)} Ξ vol
+                                    {totalVolume.toFixed(4).replace(/\.?0+$/, "")} Ξ vol
                                 </span>
                             </Fragment>
                         )}

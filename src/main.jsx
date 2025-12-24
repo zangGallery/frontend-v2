@@ -44,6 +44,7 @@ import HomePage from "./pages/index";
 // Non-critical pages are lazy-loaded (code splitting)
 const NFTPage = lazy(() => import("./pages/nft"));
 const MintPage = lazy(() => import("./pages/mint"));
+const GalleryPage = lazy(() => import("./pages/gallery"));
 const CollectionPage = lazy(() => import("./pages/collection"));
 const ActivityPage = lazy(() => import("./pages/activity"));
 const ProfilePage = lazy(() => import("./pages/profile"));
@@ -71,6 +72,7 @@ function App() {
                                     <Route path="/" element={<HomePage />} />
                                     <Route path="/nft" element={<NFTPage />} />
                                     <Route path="/mint" element={<MintPage />} />
+                                    <Route path="/gallery" element={<GalleryPage />} />
                                     <Route path="/collection" element={<CollectionPage />} />
                                     <Route path="/activity" element={<ActivityPage />} />
                                     <Route path="/profile" element={<ProfilePage />} />

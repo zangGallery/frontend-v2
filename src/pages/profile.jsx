@@ -87,6 +87,22 @@ export default function ProfilePage() {
         ? profileData?.created || []
         : profileData?.collected || [];
 
+    // Transform NFT data for NFTCard prefetchedData format
+    const getPrefetchedData = (nft) => ({
+        token_id: nft.token_id,
+        name: nft.name,
+        description: nft.description,
+        author: nft.author,
+        content_type: nft.content_type,
+        content: nft.content,
+        _stats: {
+            totalSupply: nft.total_supply ? parseInt(nft.total_supply, 10) : null,
+            floorPrice: nft.floor_price,
+            listedCount: nft.listed_count || 0,
+            totalVolume: nft.total_volume || '0',
+        },
+    });
+
     return (
         <div className="min-h-screen bg-ink-950">
             <Header />
@@ -251,7 +267,11 @@ export default function ProfilePage() {
                         ) : currentNfts.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {currentNfts.map((nft) => (
-                                    <NFTCard key={nft.token_id} id={nft.token_id} />
+                                    <NFTCard
+                                        key={nft.token_id}
+                                        id={nft.token_id}
+                                        prefetchedData={getPrefetchedData(nft)}
+                                    />
                                 ))}
                             </div>
                         ) : (

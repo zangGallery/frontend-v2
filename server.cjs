@@ -1367,38 +1367,76 @@ app.get("/api/author/:address", async (req, res) => {
     try {
         const address = req.params.address.toLowerCase();
 
-        // Get author stats from authors table
-        const authorResult = await pool.query(
-            "SELECT * FROM authors WHERE LOWER(address) = $1",
-            [address],
-        );
-
-        // Get NFTs they created
-        const createdResult = await pool.query(
-            "SELECT token_id, name, description, content_type FROM nfts WHERE LOWER(author) = $1 ORDER BY token_id DESC",
-            [address],
-        );
-
-        // Calculate collected NFTs from transfer events
-        // Get all tokens received (to = address)
-        const receivedResult = await pool.query(
-            `SELECT token_id, SUM((data->>'value')::bigint) as received
-             FROM events
-             WHERE event_type = 'TransferSingle'
-               AND LOWER(data->>'to') = $1
-             GROUP BY token_id`,
-            [address],
-        );
-
-        // Get all tokens sent (from = address)
-        const sentResult = await pool.query(
-            `SELECT token_id, SUM((data->>'value')::bigint) as sent
-             FROM events
-             WHERE event_type = 'TransferSingle'
-               AND LOWER(data->>'from') = $1
-             GROUP BY token_id`,
-            [address],
-        );
+        // Run all independent queries in parallel for speed
+        const [
+            authorResult,
+            createdResult,
+            receivedResult,
+            sentResult,
+            buyerVolumeResult,
+            sellerVolumeResult,
+            firstActivityResult,
+        ] = await Promise.all([
+            // Get author stats from authors table
+            pool.query(
+                "SELECT * FROM authors WHERE LOWER(address) = $1",
+                [address],
+            ),
+            // Get NFTs they created (with content and stats)
+            pool.query(
+                `SELECT n.token_id, n.name, n.description, n.content_type, n.content, n.author,
+                        ts.total_supply, ts.floor_price, ts.listed_count, ts.total_volume
+                 FROM nfts n
+                 LEFT JOIN token_stats ts ON n.token_id = ts.token_id
+                 WHERE LOWER(n.author) = $1
+                 ORDER BY n.token_id DESC`,
+                [address],
+            ),
+            // Get all tokens received (to = address)
+            pool.query(
+                `SELECT token_id, SUM((data->>'value')::bigint) as received
+                 FROM events
+                 WHERE event_type = 'TransferSingle'
+                   AND LOWER(data->>'to') = $1
+                 GROUP BY token_id`,
+                [address],
+            ),
+            // Get all tokens sent (from = address)
+            pool.query(
+                `SELECT token_id, SUM((data->>'value')::bigint) as sent
+                 FROM events
+                 WHERE event_type = 'TransferSingle'
+                   AND LOWER(data->>'from') = $1
+                 GROUP BY token_id`,
+                [address],
+            ),
+            // Calculate volume as buyer
+            pool.query(
+                `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
+                 FROM events
+                 WHERE event_type = 'TokenPurchased'
+                   AND LOWER(data->>'_buyer') = $1`,
+                [address],
+            ),
+            // Calculate volume as seller
+            pool.query(
+                `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
+                 FROM events
+                 WHERE event_type = 'TokenPurchased'
+                   AND LOWER(data->>'_seller') = $1`,
+                [address],
+            ),
+            // Get first activity (earliest event involving this address)
+            pool.query(
+                `SELECT MIN(block_number) as first_block
+                 FROM events
+                 WHERE LOWER(data->>'from') = $1
+                    OR LOWER(data->>'to') = $1
+                    OR LOWER(data->>'_buyer') = $1
+                    OR LOWER(data->>'_seller') = $1`,
+                [address],
+            ),
+        ]);
 
         // Calculate net balance per token
         const balanceMap = {};
@@ -1415,46 +1453,20 @@ app.get("/api/author/:address", async (req, res) => {
             .filter(([tokenId, balance]) => balance > 0n && !createdTokenIds.has(tokenId))
             .map(([tokenId]) => parseInt(tokenId, 10));
 
-        // Fetch NFT data for collected tokens
+        // Fetch NFT data for collected tokens (with content and stats) - only if needed
         let collectedNfts = [];
         if (collectedTokenIds.length > 0) {
             const collectedResult = await pool.query(
-                `SELECT token_id, name, description, content_type
-                 FROM nfts
-                 WHERE token_id = ANY($1)
-                 ORDER BY token_id DESC`,
+                `SELECT n.token_id, n.name, n.description, n.content_type, n.content, n.author,
+                        ts.total_supply, ts.floor_price, ts.listed_count, ts.total_volume
+                 FROM nfts n
+                 LEFT JOIN token_stats ts ON n.token_id = ts.token_id
+                 WHERE n.token_id = ANY($1)
+                 ORDER BY n.token_id DESC`,
                 [collectedTokenIds],
             );
             collectedNfts = collectedResult.rows;
         }
-
-        // Calculate volume as buyer and seller from TokenPurchased events
-        const buyerVolumeResult = await pool.query(
-            `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
-             FROM events
-             WHERE event_type = 'TokenPurchased'
-               AND LOWER(data->>'_buyer') = $1`,
-            [address],
-        );
-
-        const sellerVolumeResult = await pool.query(
-            `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
-             FROM events
-             WHERE event_type = 'TokenPurchased'
-               AND LOWER(data->>'_seller') = $1`,
-            [address],
-        );
-
-        // Get first activity (earliest event involving this address)
-        const firstActivityResult = await pool.query(
-            `SELECT MIN(block_number) as first_block
-             FROM events
-             WHERE LOWER(data->>'from') = $1
-                OR LOWER(data->>'to') = $1
-                OR LOWER(data->>'_buyer') = $1
-                OR LOWER(data->>'_seller') = $1`,
-            [address],
-        );
 
         // Get timestamp for first activity block
         let firstActivityTimestamp = null;
@@ -1817,7 +1829,7 @@ async function buildHomePageCache() {
 
         // Get recent events (last 10)
         const eventsResult = await pool.query(`
-            SELECT e.event_type, e.token_id, e.block_number, e.tx_hash, e.data, n.name as title
+            SELECT e.event_type, e.token_id, e.block_number, e.tx_hash, e.data, n.name as title, n.content_type
             FROM events e
             LEFT JOIN nfts n ON e.token_id = n.token_id
             ORDER BY e.block_number DESC, e.log_index DESC
@@ -1869,6 +1881,7 @@ async function buildHomePageCache() {
                     blockNumber: r.block_number,
                     txHash: r.tx_hash,
                     price,
+                    contentType: r.content_type,
                 };
             }),
             topArtists: artistsResult.rows[0]?.data || [],
@@ -1888,6 +1901,55 @@ async function buildHomePageCache() {
         throw error;
     }
 }
+
+// API: Paginated gallery endpoint - returns NFTs with content and stats
+app.get("/api/gallery", async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 12, 50);
+        const offset = parseInt(req.query.offset, 10) || 0;
+
+        // Get last token ID for total count
+        const lastIdResult = await pool.query("SELECT MAX(token_id) as last_id FROM nfts");
+        const lastNftId = lastIdResult.rows[0]?.last_id || 0;
+
+        // Get NFTs with content and stats, paginated
+        const nftsResult = await pool.query(
+            `SELECT n.token_id, n.name, n.description, n.author, n.content_type, n.content,
+                    ts.total_supply, ts.floor_price, ts.listed_count, ts.total_volume
+             FROM nfts n
+             LEFT JOIN token_stats ts ON n.token_id = ts.token_id
+             WHERE n.content IS NOT NULL
+             ORDER BY n.token_id DESC
+             LIMIT $1 OFFSET $2`,
+            [limit, offset]
+        );
+
+        const nfts = nftsResult.rows.map(r => ({
+            id: r.token_id,
+            name: r.name,
+            description: r.description,
+            author: r.author,
+            contentType: r.content_type,
+            content: r.content,
+            totalSupply: r.total_supply ? parseInt(r.total_supply, 10) : null,
+            floorPrice: r.floor_price,
+            listedCount: r.listed_count || 0,
+            totalVolume: r.total_volume || '0',
+        }));
+
+        res.set("Cache-Control", "public, max-age=10, stale-while-revalidate=30");
+        res.json({
+            lastNftId,
+            nfts,
+            hasMore: offset + nfts.length < lastNftId,
+            offset,
+            limit,
+        });
+    } catch (error) {
+        console.error("Failed to fetch gallery:", error.message);
+        res.status(500).json({ error: "Failed to fetch gallery" });
+    }
+});
 
 // API: Unified home page endpoint - single call for all home data
 app.get("/api/home", async (req, res) => {

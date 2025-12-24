@@ -232,12 +232,19 @@ export default function Home() {
                             else if (e.type === "TokenPurchased") type = "purchase";
                             else if (e.type === "TokenListed") type = "list";
 
+                            // Get content type label for mint events
+                            let contentTypeLabel = "text";
+                            if (e.contentType === "text/html") contentTypeLabel = "HTML";
+                            else if (e.contentType === "text/markdown") contentTypeLabel = "markdown";
+                            else if (e.contentType === "text/plain") contentTypeLabel = "text";
+
                             return {
                                 type,
                                 id: e.tokenId.toString(),
                                 title: e.title || `#${e.tokenId}`,
                                 blockNumber: e.blockNumber,
                                 price: e.price,
+                                contentType: contentTypeLabel,
                             };
                         })
                         .filter(e => e.type !== "transfer")
@@ -529,7 +536,7 @@ export default function Home() {
                         {lastNFTId > 12 && (
                             <div className="text-center mt-10">
                                 <Link
-                                    to="/activity"
+                                    to="/gallery"
                                     className="inline-flex items-center gap-2 px-6 py-3 bg-ink-800 text-ink-200 font-medium rounded-lg hover:bg-ink-700 hover:text-white transition-colors"
                                 >
                                     See All Works
