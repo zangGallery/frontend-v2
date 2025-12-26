@@ -16,17 +16,38 @@ export default function WalletButton() {
         }
     });
 
-    // Track if profile is empty
-    const [isProfileEmpty, setIsProfileEmpty] = useState(false);
+    // Track profile state - initialize from cache
+    const [isProfileEmpty, setIsProfileEmpty] = useState(() => {
+        if (!address) return false;
+        try {
+            const cached = localStorage.getItem(`profile_empty_${address.toLowerCase()}`);
+            return cached === "true";
+        } catch { return false; }
+    });
+    const [profileName, setProfileName] = useState(() => {
+        if (!address) return null;
+        try {
+            return localStorage.getItem(`profile_name_${address.toLowerCase()}`) || null;
+        } catch { return null; }
+    });
     const [checkedProfile, setCheckedProfile] = useState(false);
 
     // Check profile when address changes
     useEffect(() => {
         if (!address) {
             setIsProfileEmpty(false);
+            setProfileName(null);
             setCheckedProfile(false);
             return;
         }
+
+        // Load from cache immediately
+        try {
+            const cachedName = localStorage.getItem(`profile_name_${address.toLowerCase()}`);
+            const cachedEmpty = localStorage.getItem(`profile_empty_${address.toLowerCase()}`);
+            if (cachedName) setProfileName(cachedName);
+            if (cachedEmpty !== null) setIsProfileEmpty(cachedEmpty === "true");
+        } catch {}
 
         const checkProfile = async () => {
             try {
@@ -36,6 +57,12 @@ export default function WalletButton() {
                     const isEmpty = !data.name && !data.bio && !data.xUsername &&
                                    !data.instagramUsername && !data.baseUsername;
                     setIsProfileEmpty(isEmpty);
+                    setProfileName(data.name || null);
+                    // Cache the results
+                    try {
+                        localStorage.setItem(`profile_name_${address.toLowerCase()}`, data.name || "");
+                        localStorage.setItem(`profile_empty_${address.toLowerCase()}`, isEmpty.toString());
+                    } catch {}
                 }
             } catch {
                 // Ignore errors
@@ -86,11 +113,10 @@ export default function WalletButton() {
                                 return (
                                     <button
                                         onClick={openConnectModal}
-                                        className="p-2 flex items-center justify-center text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
-                                        title="Connect wallet"
+                                        className="flex items-center gap-2 px-3 py-2 text-sm text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
                                     >
                                         <svg
-                                            className="w-5 h-5"
+                                            className="w-4 h-4"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -102,6 +128,7 @@ export default function WalletButton() {
                                                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                                             />
                                         </svg>
+                                        <span>Sign in</span>
                                     </button>
                                 );
                             }
@@ -168,11 +195,10 @@ export default function WalletButton() {
                             return (
                                 <button
                                     onClick={() => navigate(`/profile?address=${address}`)}
-                                    className="p-2 flex items-center justify-center text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
-                                    title="Profile"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
                                 >
                                     <svg
-                                        className="w-5 h-5"
+                                        className="w-4 h-4"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -184,6 +210,7 @@ export default function WalletButton() {
                                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                                         />
                                     </svg>
+                                    <span className={profileName ? "" : "font-mono"}>{profileName || account.displayName}</span>
                                 </button>
                             );
                         })()}
