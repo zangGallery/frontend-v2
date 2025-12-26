@@ -927,7 +927,6 @@ export default function NFTPage() {
                                     )
                                 ) : (
                                     <Skeleton
-                                        count={2}
                                         baseColor="#27272a"
                                         highlightColor="#3f3f46"
                                     />

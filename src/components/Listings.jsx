@@ -179,6 +179,12 @@ export default function Listings({
     const allListings = useMemo(() => {
         if (!listingGroups) return null;
 
+        // Check if any seller balance is still loading
+        const hasLoadingBalances = listingGroups.some(
+            group => group.sellerBalance === undefined || group.sellerBalance === null
+        );
+        if (hasLoadingBalances) return null;
+
         const listings = [];
         for (const group of listingGroups) {
             if (showOnlyOthers && group.seller?.toLowerCase() === walletAddress?.toLowerCase()) {

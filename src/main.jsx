@@ -8,12 +8,12 @@ import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config } from "./common/wagmi";
 import Wrapper from "./Wrapper";
 
-// Scroll to top on route change
+// Scroll to top on route change (instant, bypasses CSS scroll-smooth)
 function ScrollToTop() {
     const { pathname } = useLocation();
 
     useEffect(() => {
-        window.scrollTo(0, 0);
+        window.scrollTo({ top: 0, behavior: 'instant' });
     }, [pathname]);
 
     return null;
