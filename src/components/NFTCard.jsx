@@ -266,8 +266,8 @@ export default function NFTCard({ id, prefetchedData }) {
                             <div className="space-y-2">
                                 <Skeleton
                                     count={5}
-                                    baseColor="#1c1c1e"
-                                    highlightColor="#2a2a2e"
+                                    baseColor="#27272a"
+                                    highlightColor="#3f3f46"
                                     borderRadius={0}
                                 />
                             </div>
@@ -292,8 +292,8 @@ export default function NFTCard({ id, prefetchedData }) {
                         <h3 className="text-ink-100 font-medium text-sm leading-tight line-clamp-1 group-hover:text-white transition-colors flex-1 min-w-0">
                             {tokenData?.name || (
                                 <Skeleton
-                                    baseColor="#1c1c1e"
-                                    highlightColor="#2a2a2e"
+                                    baseColor="#27272a"
+                                    highlightColor="#3f3f46"
                                     width="70%"
                                 />
                             )}
@@ -320,8 +320,8 @@ export default function NFTCard({ id, prefetchedData }) {
                         ) : (
                             <Skeleton
                                 width={30}
-                                baseColor="#1c1c1e"
-                                highlightColor="#2a2a2e"
+                                baseColor="#27272a"
+                                highlightColor="#3f3f46"
                             />
                         )}
 

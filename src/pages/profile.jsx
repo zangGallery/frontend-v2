@@ -591,7 +591,7 @@ export default function ProfilePage() {
                                     <div key={i} className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
                                         <Skeleton height={208} baseColor="#27272a" highlightColor="#3f3f46" />
                                         <div className="p-4">
-                                            <Skeleton count={2} baseColor="#27272a" highlightColor="#3f3f46" />
+                                            <Skeleton baseColor="#27272a" highlightColor="#3f3f46" />
                                         </div>
                                     </div>
                                 ))}
