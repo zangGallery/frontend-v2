@@ -13,6 +13,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useNewEvents, useSocketStatus, useSyncStatus } from "../common/socket";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 import makeBlockie from "ethereum-blockies-base64";
+import { prefetchProfile } from "../common/prefetch";
 
 import "../styles/tailwind.css";
 
@@ -567,6 +568,7 @@ export default function Home() {
                             <Link
                                 key={artist.address}
                                 to={`/profile?address=${artist.address}`}
+                                onMouseEnter={() => prefetchProfile(artist.address)}
                                 className="flex items-center gap-4 p-5 bg-ink-900/50 rounded-xl border border-ink-800 hover:border-ink-600 hover:bg-ink-800/50 transition-colors"
                             >
                                 <span className="text-ink-500 font-mono text-lg w-6">
@@ -608,6 +610,7 @@ export default function Home() {
                             <Link
                                 key={collector.address}
                                 to={`/profile?address=${collector.address}`}
+                                onMouseEnter={() => prefetchProfile(collector.address)}
                                 className="flex items-center gap-4 p-5 bg-ink-900/50 rounded-xl border border-ink-800 hover:border-ink-600 hover:bg-ink-800/50 transition-colors"
                             >
                                 <span className="text-ink-500 font-mono text-lg w-6">

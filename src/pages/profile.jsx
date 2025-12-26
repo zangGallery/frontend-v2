@@ -8,6 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { formatEther } from "viem";
 import config from "../config";
 import makeBlockie from "ethereum-blockies-base64";
+import { getPrefetchedProfile } from "../common/prefetch";
 
 import "../styles/tailwind.css";
 import "../styles/globals.css";
@@ -102,17 +103,36 @@ export default function ProfilePage() {
             setIsLoading(true);
             setError(null);
             try {
-                const [authorRes, profileRes] = await Promise.all([
-                    fetch(`/api/author/${address}`),
-                    fetch(`/api/profile/${address}`),
-                ]);
+                // Check for prefetched profile data first
+                const prefetchedProfileInfo = getPrefetchedProfile(address);
+
+                // If we have prefetched profile info, use it immediately
+                if (prefetchedProfileInfo) {
+                    setProfileInfo(prefetchedProfileInfo);
+                    setEditForm({
+                        name: prefetchedProfileInfo.name || "",
+                        bio: prefetchedProfileInfo.bio || "",
+                        xUsername: prefetchedProfileInfo.xUsername || "",
+                        instagramUsername: prefetchedProfileInfo.instagramUsername || "",
+                        baseUsername: prefetchedProfileInfo.baseUsername || "",
+                    });
+                }
+
+                // Always fetch author data, and fetch profile if not prefetched
+                const fetchPromises = [fetch(`/api/author/${address}`)];
+                if (!prefetchedProfileInfo) {
+                    fetchPromises.push(fetch(`/api/profile/${address}`));
+                }
+
+                const [authorRes, profileRes] = await Promise.all(fetchPromises);
 
                 if (!authorRes.ok) throw new Error("Failed to fetch profile");
 
                 const authorData = await authorRes.json();
                 setProfileData(authorData);
 
-                if (profileRes.ok) {
+                // Only process profile response if we fetched it
+                if (profileRes && profileRes.ok) {
                     const profileInfoData = await profileRes.json();
                     setProfileInfo(profileInfoData);
                     setEditForm({
