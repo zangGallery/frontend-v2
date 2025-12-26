@@ -93,3 +93,44 @@ export function getPrefetchedProfile(address) {
 
     return entry.data;
 }
+
+// Prefetch author data (NFTs, stats) on hover - this is the slow endpoint
+export function prefetchAuthor(address) {
+    if (!address) return;
+
+    const key = `author:${address.toLowerCase()}`;
+
+    // Don't refetch if already cached and fresh
+    const existing = cache.get(key);
+    if (existing && Date.now() - existing.timestamp < CACHE_TTL) {
+        return;
+    }
+
+    // Fetch in background
+    fetch(`/api/author/${address.toLowerCase()}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+            if (data) {
+                cache.set(key, { data, timestamp: Date.now() });
+            }
+        })
+        .catch(() => {}); // Silent fail - prefetch is best-effort
+}
+
+// Get prefetched author data (returns null if not cached or stale)
+export function getPrefetchedAuthor(address) {
+    if (!address) return null;
+
+    const key = `author:${address.toLowerCase()}`;
+    const entry = cache.get(key);
+
+    if (!entry) return null;
+
+    // Check if stale
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+        cache.delete(key);
+        return null;
+    }
+
+    return entry.data;
+}

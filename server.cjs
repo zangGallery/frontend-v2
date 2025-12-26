@@ -139,6 +139,12 @@ async function initializeDatabase() {
             -- Enhanced index for recent events
             CREATE INDEX IF NOT EXISTS idx_events_recent ON events(block_number DESC, log_index DESC);
             CREATE INDEX IF NOT EXISTS idx_og_status ON og_images(status);
+
+            -- Indexes on JSON fields for fast user lookups (address queries)
+            CREATE INDEX IF NOT EXISTS idx_events_to ON events ((LOWER(data->>'to'))) WHERE event_type = 'TransferSingle';
+            CREATE INDEX IF NOT EXISTS idx_events_from ON events ((LOWER(data->>'from'))) WHERE event_type = 'TransferSingle';
+            CREATE INDEX IF NOT EXISTS idx_events_buyer ON events ((LOWER(data->>'_buyer'))) WHERE event_type = 'TokenPurchased';
+            CREATE INDEX IF NOT EXISTS idx_events_seller ON events ((LOWER(data->>'_seller'))) WHERE event_type = 'TokenPurchased';
         `);
 
         // Add new columns to token_stats if they don't exist

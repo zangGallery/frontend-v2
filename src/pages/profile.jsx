@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { formatEther } from "viem";
 import config from "../config";
 import makeBlockie from "ethereum-blockies-base64";
-import { getPrefetchedProfile } from "../common/prefetch";
+import { getPrefetchedProfile, getPrefetchedAuthor } from "../common/prefetch";
 
 import "../styles/tailwind.css";
 import "../styles/globals.css";
@@ -103,8 +103,9 @@ export default function ProfilePage() {
             setIsLoading(true);
             setError(null);
             try {
-                // Check for prefetched profile data first
+                // Check for prefetched data first
                 const prefetchedProfileInfo = getPrefetchedProfile(address);
+                const prefetchedAuthorData = getPrefetchedAuthor(address);
 
                 // If we have prefetched profile info, use it immediately
                 if (prefetchedProfileInfo) {
@@ -118,7 +119,14 @@ export default function ProfilePage() {
                     });
                 }
 
-                // Always fetch author data, and fetch profile if not prefetched
+                // If we have prefetched author data, use it immediately
+                if (prefetchedAuthorData) {
+                    setProfileData(prefetchedAuthorData);
+                    setIsLoading(false);
+                    return; // All data prefetched, no need to fetch
+                }
+
+                // Fetch what we don't have prefetched
                 const fetchPromises = [fetch(`/api/author/${address}`)];
                 if (!prefetchedProfileInfo) {
                     fetchPromises.push(fetch(`/api/profile/${address}`));
