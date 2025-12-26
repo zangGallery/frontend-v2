@@ -6,3 +6,4 @@ public
 .env*
 known_hosts
 dist/
+og-images/

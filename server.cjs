@@ -1,12 +1,14 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const fs = require("fs").promises;
 const compression = require("compression");
 const http = require("http");
 const { Server } = require("socket.io");
 const { createPublicClient, http: viemHttp, verifyMessage } = require("viem");
 const { base } = require("viem/chains");
 const { Pool } = require("pg");
+const ogGenerator = require("./og-generator.cjs");
 
 const app = express();
 const server = http.createServer(app);
@@ -124,8 +126,19 @@ async function initializeDatabase() {
                 updated_at TIMESTAMP DEFAULT NOW()
             );
 
+            -- OG image generation tracking
+            CREATE TABLE IF NOT EXISTS og_images (
+                token_id BIGINT PRIMARY KEY,
+                status VARCHAR(20) DEFAULT 'pending',
+                file_path TEXT,
+                error TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                generated_at TIMESTAMP
+            );
+
             -- Enhanced index for recent events
             CREATE INDEX IF NOT EXISTS idx_events_recent ON events(block_number DESC, log_index DESC);
+            CREATE INDEX IF NOT EXISTS idx_og_status ON og_images(status);
         `);
 
         // Add new columns to token_stats if they don't exist
@@ -249,7 +262,8 @@ function generateOGPage(tokenId, metadata) {
     const title = metadata?.name || `NFT #${tokenId}`;
     const description =
         metadata?.description || "A text-based NFT on zang.gallery";
-    const image = metadata?.image || `${SITE_URL}/logo_white.png`;
+    // Use generated OG image instead of metadata.image
+    const image = `${SITE_URL}/og/${tokenId}.png`;
     const url = `${SITE_URL}/nft?id=${tokenId}`;
 
     return `<!DOCTYPE html>
@@ -263,15 +277,17 @@ function generateOGPage(tokenId, metadata) {
     <meta property="og:url" content="${url}">
     <meta property="og:title" content="${escapeHtml(title)}">
     <meta property="og:description" content="${escapeHtml(description)}">
-    <meta property="og:image" content="${escapeHtml(image)}">
+    <meta property="og:image" content="${image}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="zang.gallery">
 
     <!-- Twitter -->
-    <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${url}">
     <meta name="twitter:title" content="${escapeHtml(title)}">
     <meta name="twitter:description" content="${escapeHtml(description)}">
-    <meta name="twitter:image" content="${escapeHtml(image)}">
+    <meta name="twitter:image" content="${image}">
 
     <!-- Redirect browsers to actual page -->
     <meta http-equiv="refresh" content="0;url=${url}">
@@ -1003,6 +1019,120 @@ async function updateAuthorStats() {
     }
 
     console.log(`Updated stats for ${authorStats.rows.length} authors`);
+}
+
+// Queue NFTs for OG image generation
+async function queueMissingOGImages() {
+    // Find NFTs that don't have OG images yet
+    const missing = await pool.query(`
+        SELECT n.token_id FROM nfts n
+        LEFT JOIN og_images o ON n.token_id = o.token_id
+        WHERE o.token_id IS NULL
+          AND n.content IS NOT NULL
+    `);
+
+    if (missing.rows.length === 0) {
+        return { queued: 0 };
+    }
+
+    // Queue them for generation
+    for (const { token_id } of missing.rows) {
+        await pool.query(
+            `INSERT INTO og_images (token_id, status) VALUES ($1, 'pending')
+             ON CONFLICT (token_id) DO NOTHING`,
+            [token_id]
+        );
+    }
+
+    console.log(`Queued ${missing.rows.length} NFTs for OG image generation`);
+    return { queued: missing.rows.length };
+}
+
+// Process pending OG image generation queue
+let isProcessingOGQueue = false;
+async function processOGQueue() {
+    if (isProcessingOGQueue) {
+        return { processed: 0, reason: "already processing" };
+    }
+    isProcessingOGQueue = true;
+
+    try {
+        // Get pending items (limit to 5 per batch to avoid memory issues)
+        const pending = await pool.query(
+            `SELECT token_id FROM og_images WHERE status = 'pending' LIMIT 5`
+        );
+
+        if (pending.rows.length === 0) {
+            return { processed: 0 };
+        }
+
+        console.log(`Processing ${pending.rows.length} OG images...`);
+        let processed = 0;
+
+        for (const { token_id } of pending.rows) {
+            try {
+                // Mark as generating
+                await pool.query(
+                    `UPDATE og_images SET status = 'generating' WHERE token_id = $1`,
+                    [token_id]
+                );
+
+                // Get NFT data
+                const nft = await pool.query(
+                    `SELECT name, description, content, content_type FROM nfts WHERE token_id = $1`,
+                    [token_id]
+                );
+
+                if (nft.rows.length === 0) {
+                    await pool.query(
+                        `UPDATE og_images SET status = 'failed', error = 'NFT not found' WHERE token_id = $1`,
+                        [token_id]
+                    );
+                    continue;
+                }
+
+                const { name, description, content, content_type } = nft.rows[0];
+
+                // Generate OG image
+                const filePath = await ogGenerator.generateOGImage(
+                    token_id,
+                    content,
+                    content_type,
+                    { name, description }
+                );
+
+                // Mark as completed
+                await pool.query(
+                    `UPDATE og_images SET status = 'completed', file_path = $1, generated_at = NOW()
+                     WHERE token_id = $2`,
+                    [filePath, token_id]
+                );
+
+                processed++;
+                console.log(`Generated OG image for token ${token_id}`);
+            } catch (err) {
+                console.error(`OG generation failed for token ${token_id}:`, err.message);
+                await pool.query(
+                    `UPDATE og_images SET status = 'failed', error = $1 WHERE token_id = $2`,
+                    [err.message, token_id]
+                );
+            }
+        }
+
+        console.log(`Processed ${processed}/${pending.rows.length} OG images`);
+
+        // If there are more pending, schedule another batch
+        const remaining = await pool.query(
+            `SELECT COUNT(*) as count FROM og_images WHERE status = 'pending'`
+        );
+        if (parseInt(remaining.rows[0].count, 10) > 0) {
+            setTimeout(() => processOGQueue().catch(() => {}), 2000);
+        }
+
+        return { processed };
+    } finally {
+        isProcessingOGQueue = false;
+    }
 }
 
 // Sync marketplace listings (floor prices, listing counts, total supply)
@@ -2315,6 +2445,59 @@ app.post("/api/blocks/batch", async (req, res) => {
     }
 });
 
+// Serve OG images with immutable caching
+app.get("/og/:id.png", async (req, res) => {
+    const tokenId = parseInt(req.params.id, 10);
+
+    if (isNaN(tokenId) || tokenId < 1) {
+        return res.status(400).send("Invalid token ID");
+    }
+
+    const imagePath = ogGenerator.getOGImagePath(tokenId);
+
+    try {
+        await fs.access(imagePath);
+        // NFTs are immutable - cache forever
+        res.set("Cache-Control", "public, max-age=31536000, immutable");
+        res.type("image/png");
+        res.sendFile(imagePath);
+    } catch {
+        // Image not generated yet - try to generate it on-demand
+        try {
+            const nft = await pool.query(
+                "SELECT name, description, content, content_type FROM nfts WHERE token_id = $1",
+                [tokenId],
+            );
+
+            if (nft.rows.length > 0) {
+                const { name, description, content, content_type } = nft.rows[0];
+                await ogGenerator.generateOGImage(tokenId, content, content_type, {
+                    name,
+                    description,
+                });
+
+                // Update database
+                await pool.query(
+                    `INSERT INTO og_images (token_id, status, generated_at)
+                     VALUES ($1, 'completed', NOW())
+                     ON CONFLICT (token_id) DO UPDATE SET status = 'completed', generated_at = NOW()`,
+                    [tokenId],
+                );
+
+                res.set("Cache-Control", "public, max-age=31536000, immutable");
+                res.type("image/png");
+                return res.sendFile(imagePath);
+            }
+        } catch (genError) {
+            console.error(`OG generation failed for token ${tokenId}:`, genError.message);
+        }
+
+        // Fallback to default logo with short cache
+        res.set("Cache-Control", "public, max-age=60");
+        res.sendFile(path.join(__dirname, "dist", "logo_white.png"));
+    }
+});
+
 // Handle /nft route for bots
 app.get("/nft", async (req, res, next) => {
     const userAgent = req.headers["user-agent"];
@@ -2373,6 +2556,15 @@ async function startBackgroundSync() {
                 await updateAuthorStats().catch((e) =>
                     console.error("Author stats update failed:", e.message),
                 );
+
+                // Queue and process OG images after NFT data is available
+                console.log("Starting OG image generation...");
+                await queueMissingOGImages().catch((e) =>
+                    console.error("OG queue failed:", e.message),
+                );
+                processOGQueue().catch((e) =>
+                    console.error("OG processing failed:", e.message),
+                );
             })
             .catch((err) => console.error("NFT pre-warm failed:", err.message));
     } catch (err) {
@@ -2423,6 +2615,9 @@ async function startBackgroundSync() {
                 // Rebuild home page cache
                 await updateLeaderboards().catch((e) => {});
                 await buildHomePageCache().catch((e) => {});
+                // Queue OG images for new mints
+                await queueMissingOGImages().catch((e) => {});
+                processOGQueue().catch((e) => {});
             }
             // Use shorter interval during historical sync
             const nextInterval = result.needsMoreSync ? HISTORICAL_SYNC_INTERVAL_MS : SYNC_INTERVAL_MS;
@@ -2439,9 +2634,18 @@ async function startBackgroundSync() {
 
 // Start server
 async function startServer() {
+    // Create og-images directory
+    const ogImagesDir = path.join(__dirname, "og-images");
+    await fs.mkdir(ogImagesDir, { recursive: true }).catch(() => {});
+    console.log(`OG images directory: ${ogImagesDir}`);
+
     // Initialize database if DATABASE_URL is set
     if (process.env.DATABASE_URL) {
         await initializeDatabase();
+        // Initialize Playwright browser for OG generation
+        await ogGenerator.initBrowser().catch((e) =>
+            console.error("OG browser init failed:", e.message)
+        );
     } else {
         console.log("DATABASE_URL not set - running without caching");
     }
