@@ -205,7 +205,7 @@ const ALCHEMY_KEY =
 const BASE_RPC = ALCHEMY_KEY
     ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
     : "https://mainnet.base.org";
-const SITE_URL = process.env.SITE_URL || "https://zang.gallery";
+const SITE_URL = process.env.SITE_URL || "https://www.zang.gallery";
 
 // Create viem public client for Base
 const publicClient = createPublicClient({
