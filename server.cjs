@@ -2215,10 +2215,61 @@ app.get("/api/gallery", async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit, 10) || 12, 50);
         const offset = parseInt(req.query.offset, 10) || 0;
+        const sort = req.query.sort || "newest";
+        const contentType = req.query.type || "all";
+        const listedOnly = req.query.listed === "yes";
 
-        // Get last token ID for total count
-        const lastIdResult = await pool.query("SELECT MAX(token_id) as last_id FROM nfts");
-        const lastNftId = lastIdResult.rows[0]?.last_id || 0;
+        // Build WHERE conditions
+        const conditions = ["n.content IS NOT NULL"];
+        const params = [];
+        let paramIndex = 1;
+
+        // Content type filter
+        if (contentType === "html") {
+            conditions.push(`n.content_type = $${paramIndex++}`);
+            params.push("text/html");
+        } else if (contentType === "markdown") {
+            conditions.push(`n.content_type = $${paramIndex++}`);
+            params.push("text/markdown");
+        } else if (contentType === "plain") {
+            conditions.push(`n.content_type = $${paramIndex++}`);
+            params.push("text/plain");
+        }
+
+        // Listed filter
+        if (listedOnly) {
+            conditions.push(`COALESCE(ts.listed_count, 0) > 0`);
+        }
+
+        const whereClause = conditions.join(" AND ");
+
+        // Build ORDER BY
+        let orderBy;
+        switch (sort) {
+            case "oldest":
+                orderBy = "n.token_id ASC";
+                break;
+            case "price_low":
+                orderBy = "CASE WHEN ts.floor_price IS NULL THEN 1 ELSE 0 END, ts.floor_price::numeric ASC, n.token_id DESC";
+                break;
+            case "price_high":
+                orderBy = "CASE WHEN ts.floor_price IS NULL THEN 1 ELSE 0 END, ts.floor_price::numeric DESC, n.token_id DESC";
+                break;
+            case "editions":
+                orderBy = "COALESCE(ts.total_supply, 0) DESC, n.token_id DESC";
+                break;
+            default: // newest
+                orderBy = "n.token_id DESC";
+        }
+
+        // Get total count for filtered results
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as total FROM nfts n
+             LEFT JOIN token_stats ts ON n.token_id = ts.token_id
+             WHERE ${whereClause}`,
+            params
+        );
+        const totalCount = parseInt(countResult.rows[0]?.total || 0, 10);
 
         // Get NFTs with content and stats, paginated
         const nftsResult = await pool.query(
@@ -2226,10 +2277,10 @@ app.get("/api/gallery", async (req, res) => {
                     ts.total_supply, ts.floor_price, ts.listed_count, ts.total_volume
              FROM nfts n
              LEFT JOIN token_stats ts ON n.token_id = ts.token_id
-             WHERE n.content IS NOT NULL
-             ORDER BY n.token_id DESC
-             LIMIT $1 OFFSET $2`,
-            [limit, offset]
+             WHERE ${whereClause}
+             ORDER BY ${orderBy}
+             LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+            [...params, limit, offset]
         );
 
         const nfts = nftsResult.rows.map(r => ({
@@ -2247,9 +2298,9 @@ app.get("/api/gallery", async (req, res) => {
 
         res.set("Cache-Control", "public, max-age=10, stale-while-revalidate=30");
         res.json({
-            lastNftId,
+            totalCount,
             nfts,
-            hasMore: offset + nfts.length < lastNftId,
+            hasMore: offset + nfts.length < totalCount,
             offset,
             limit,
         });
