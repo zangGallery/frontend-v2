@@ -37,14 +37,10 @@ const ALLOWED_TAGS = [
  */
 async function initBrowser() {
     if (!browser) {
-        // Use system Chromium on Railway/Nix, Playwright's bundled browser locally
-        const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined;
-
         browser = await chromium.launch({
-            executablePath,
-            args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
         });
-        console.log("OG Generator: Browser initialized" + (executablePath ? ` (using ${executablePath})` : ""));
+        console.log("OG Generator: Browser initialized");
     }
     return browser;
 }

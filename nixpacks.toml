@@ -1,9 +1,6 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "chromium"]
+nixPkgs = ["nodejs_20"]
 
-[phases.install]
-cmds = ["npm install"]
-
-[variables]
-PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "/nix/var/nix/profiles/default/bin/chromium"
-PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1"
+[phases.playwright]
+dependsOn = ["install"]
+cmds = ["npx playwright install --with-deps chromium"]
