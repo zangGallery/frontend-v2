@@ -134,3 +134,44 @@ export function getPrefetchedAuthor(address) {
 
     return entry.data;
 }
+
+// Prefetch user history on hover
+export function prefetchUserHistory(address) {
+    if (!address) return;
+
+    const key = `history:${address.toLowerCase()}`;
+
+    // Don't refetch if already cached and fresh
+    const existing = cache.get(key);
+    if (existing && Date.now() - existing.timestamp < CACHE_TTL) {
+        return;
+    }
+
+    // Fetch in background
+    fetch(`/api/user-history/${address.toLowerCase()}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+            if (data) {
+                cache.set(key, { data: data.history, timestamp: Date.now() });
+            }
+        })
+        .catch(() => {}); // Silent fail - prefetch is best-effort
+}
+
+// Get prefetched user history (returns null if not cached or stale)
+export function getPrefetchedUserHistory(address) {
+    if (!address) return null;
+
+    const key = `history:${address.toLowerCase()}`;
+    const entry = cache.get(key);
+
+    if (!entry) return null;
+
+    // Check if stale
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+        cache.delete(key);
+        return null;
+    }
+
+    return entry.data;
+}

@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom";
 import { useEns } from "../common/ens";
 import { useProfiles } from "../common/profiles";
 import { shortenAddress } from "../common/utils";
+import PrefetchLink from "./PrefetchLink";
 
 export default function Address({ address, shorten, nChar, disableLink }) {
     const { lookupEns } = useEns();
@@ -21,12 +21,12 @@ export default function Address({ address, shorten, nChar, disableLink }) {
     return (
         <span className={`${fontClass} text-ink-300`}>
             {!disableLink ? (
-                <Link
+                <PrefetchLink
                     to={`/profile?address=${address}`}
                     className="hover:text-accent-cyan transition-colors underline decoration-ink-600 hover:decoration-accent-cyan"
                 >
                     {displayText}
-                </Link>
+                </PrefetchLink>
             ) : (
                 displayText
             )}

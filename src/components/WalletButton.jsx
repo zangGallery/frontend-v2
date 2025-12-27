@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useNavigate } from "react-router-dom";
-import { prefetchProfile, prefetchAuthor } from "../common/prefetch";
+import { prefetchProfile, prefetchAuthor, prefetchUserHistory } from "../common/prefetch";
 
 export default function WalletButton() {
     const navigate = useNavigate();
@@ -163,7 +163,7 @@ export default function WalletButton() {
                                     <div className="flex items-center gap-1 bg-accent-cyan/10 rounded-lg border border-accent-cyan/30 pl-3 pr-1">
                                         <button
                                             onClick={() => navigate(`/profile?address=${address}`)}
-                                            onMouseEnter={() => { prefetchProfile(address); prefetchAuthor(address); }}
+                                            onMouseEnter={() => { prefetchProfile(address); prefetchAuthor(address); prefetchUserHistory(address); }}
                                             className="flex items-center gap-2 py-1.5 text-sm text-accent-cyan hover:text-white transition-colors"
                                         >
                                             <svg
@@ -197,7 +197,7 @@ export default function WalletButton() {
                             return (
                                 <button
                                     onClick={() => navigate(`/profile?address=${address}`)}
-                                    onMouseEnter={() => { prefetchProfile(address); prefetchAuthor(address); }}
+                                    onMouseEnter={() => { prefetchProfile(address); prefetchAuthor(address); prefetchUserHistory(address); }}
                                     className="flex items-center gap-2 px-3 py-2 text-sm text-ink-400 hover:text-white hover:bg-ink-800/50 rounded-lg transition-colors"
                                 >
                                     <svg

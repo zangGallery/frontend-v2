@@ -145,6 +145,8 @@ async function initializeDatabase() {
             CREATE INDEX IF NOT EXISTS idx_events_from ON events ((LOWER(data->>'from'))) WHERE event_type = 'TransferSingle';
             CREATE INDEX IF NOT EXISTS idx_events_buyer ON events ((LOWER(data->>'_buyer'))) WHERE event_type = 'TokenPurchased';
             CREATE INDEX IF NOT EXISTS idx_events_seller ON events ((LOWER(data->>'_seller'))) WHERE event_type = 'TokenPurchased';
+            CREATE INDEX IF NOT EXISTS idx_events_lister ON events ((LOWER(data->>'_seller'))) WHERE event_type = 'TokenListed';
+            CREATE INDEX IF NOT EXISTS idx_events_delister ON events ((LOWER(data->>'_seller'))) WHERE event_type = 'TokenDelisted';
         `);
 
         // Add new columns to token_stats if they don't exist
@@ -1809,6 +1811,120 @@ app.post("/api/profile", async (req, res) => {
     } catch (error) {
         console.error("Failed to update profile:", error.message);
         res.status(500).json({ error: "Failed to update profile" });
+    }
+});
+
+// API: Get user activity history (all events relevant to an address)
+app.get("/api/user-history/:address", async (req, res) => {
+    try {
+        const address = req.params.address.toLowerCase();
+        const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+
+        // Single query to get all events where user is involved
+        // Uses existing indexes on to, from, _buyer, _seller
+        const result = await pool.query(
+            `SELECT e.event_type, e.token_id, e.block_number, e.tx_hash, e.data, n.name as title
+             FROM events e
+             LEFT JOIN nfts n ON e.token_id = n.token_id
+             WHERE (
+                 (e.event_type = 'TransferSingle' AND (LOWER(e.data->>'to') = $1 OR LOWER(e.data->>'from') = $1))
+                 OR (e.event_type = 'TokenPurchased' AND (LOWER(e.data->>'_buyer') = $1 OR LOWER(e.data->>'_seller') = $1))
+                 OR (e.event_type = 'TokenListed' AND LOWER(e.data->>'_seller') = $1)
+                 OR (e.event_type = 'TokenDelisted' AND LOWER(e.data->>'_seller') = $1)
+             )
+             ORDER BY e.block_number DESC, e.log_index DESC
+             LIMIT $2`,
+            [address, limit]
+        );
+
+        // Get tx hashes that have purchases (to filter out redundant transfers)
+        const purchaseTxHashes = new Set(
+            result.rows
+                .filter(r => r.event_type === 'TokenPurchased')
+                .map(r => r.tx_hash)
+        );
+
+        // Transform events into user-friendly format
+        const history = result.rows
+            .filter(row => {
+                // Filter out TransferSingle events that are part of a purchase
+                if (row.event_type === 'TransferSingle' && purchaseTxHashes.has(row.tx_hash)) {
+                    return false;
+                }
+                return true;
+            })
+            .map(row => {
+                const data = row.data;
+                let type, counterparty, amount, price;
+
+                switch (row.event_type) {
+                    case 'TransferSingle':
+                        const from = data.from?.toLowerCase();
+                        const to = data.to?.toLowerCase();
+                        const isFromZero = from === '0x0000000000000000000000000000000000000000';
+                        const isToZero = to === '0x0000000000000000000000000000000000000000';
+
+                        if (isFromZero && to === address) {
+                            type = 'mint';
+                            counterparty = null;
+                        } else if (to === address) {
+                            type = 'receive';
+                            counterparty = from;
+                        } else if (from === address) {
+                            type = isToZero ? 'burn' : 'send';
+                            counterparty = isToZero ? null : to;
+                        } else {
+                            type = 'transfer';
+                            counterparty = null;
+                        }
+                        amount = parseInt(data.value || '1', 10);
+                        break;
+
+                    case 'TokenPurchased':
+                        const buyer = data._buyer?.toLowerCase();
+                        const seller = data._seller?.toLowerCase();
+                        if (buyer === address) {
+                            type = 'purchase';
+                            counterparty = seller;
+                        } else {
+                            type = 'sale';
+                            counterparty = buyer;
+                        }
+                        amount = parseInt(data._amount || '1', 10);
+                        price = data._price;
+                        break;
+
+                    case 'TokenListed':
+                        type = 'list';
+                        amount = parseInt(data._amount || '1', 10);
+                        price = data._price;
+                        break;
+
+                    case 'TokenDelisted':
+                        type = 'delist';
+                        amount = parseInt(data._amount || '1', 10);
+                        break;
+
+                    default:
+                        type = row.event_type;
+                }
+
+                return {
+                    type,
+                    tokenId: row.token_id,
+                    title: row.title || `#${row.token_id}`,
+                    blockNumber: row.block_number,
+                    txHash: row.tx_hash,
+                    counterparty,
+                    amount,
+                    price,
+                };
+            });
+
+        res.json({ history });
+    } catch (error) {
+        console.error("Failed to fetch user history:", error.message);
+        res.status(500).json({ error: "Failed to fetch user history" });
     }
 });
 

@@ -13,7 +13,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useNewEvents, useSocketStatus, useSyncStatus } from "../common/socket";
 import SyncStatus, { useSyncMeta } from "../components/SyncStatus";
 import makeBlockie from "ethereum-blockies-base64";
-import { prefetchProfile, prefetchAuthor } from "../common/prefetch";
+import { PrefetchLink } from "../components";
 
 import "../styles/tailwind.css";
 
@@ -382,8 +382,8 @@ export default function Home() {
                             <span className="text-ink-400 hidden sm:inline">{">"}</span>{" "}
                             <TypewriterText
                                 phrases={[
-                                    "Write beautifully.",
-                                    "Words, forever.",
+                                    "Write beauty.",
+                                    "Words forever.",
                                     "Code is poetry.",
                                     "Text is art.",
                                     "Create freely.",
@@ -565,10 +565,9 @@ export default function Home() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {topArtists.slice(0, 6).map((artist, index) => (
-                            <Link
+                            <PrefetchLink
                                 key={artist.address}
                                 to={`/profile?address=${artist.address}`}
-                                onMouseEnter={() => { prefetchProfile(artist.address); prefetchAuthor(artist.address); }}
                                 className="flex items-center gap-4 p-5 bg-ink-900/50 rounded-xl border border-ink-800 hover:border-ink-600 hover:bg-ink-800/50 transition-colors"
                             >
                                 <span className="text-ink-500 font-mono text-lg w-6">
@@ -587,7 +586,7 @@ export default function Home() {
                                         {artist.totalCreated} works · {artist.volumeEth.toFixed(4)} ETH
                                     </div>
                                 </div>
-                            </Link>
+                            </PrefetchLink>
                         ))}
                     </div>
                 </section>
@@ -607,10 +606,9 @@ export default function Home() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {topCollectors.slice(0, 6).map((collector, index) => (
-                            <Link
+                            <PrefetchLink
                                 key={collector.address}
                                 to={`/profile?address=${collector.address}`}
-                                onMouseEnter={() => { prefetchProfile(collector.address); prefetchAuthor(collector.address); }}
                                 className="flex items-center gap-4 p-5 bg-ink-900/50 rounded-xl border border-ink-800 hover:border-ink-600 hover:bg-ink-800/50 transition-colors"
                             >
                                 <span className="text-ink-500 font-mono text-lg w-6">
@@ -629,7 +627,7 @@ export default function Home() {
                                         {collector.totalCollected} collected · {collector.volumeEth.toFixed(4)} ETH
                                     </div>
                                 </div>
-                            </Link>
+                            </PrefetchLink>
                         ))}
                     </div>
                 </section>

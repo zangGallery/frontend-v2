@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { NFTCard, Header } from "../components";
+import { NFTCard, Header, UserHistory } from "../components";
 import { useEns } from "../common/ens";
 import { useProfiles } from "../common/profiles";
 import { useAccount, useBalance, useSignMessage } from "wagmi";
@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { formatEther } from "viem";
 import config from "../config";
 import makeBlockie from "ethereum-blockies-base64";
-import { getPrefetchedProfile, getPrefetchedAuthor } from "../common/prefetch";
+import { getPrefetchedProfile, getPrefetchedAuthor, getPrefetchedUserHistory } from "../common/prefetch";
 
 import "../styles/tailwind.css";
 import "../styles/globals.css";
@@ -168,6 +168,15 @@ export default function ProfilePage() {
         const displayName = customName || ensName || shortenAddress(address);
         document.title = displayName ? `${displayName} - zang` : "Profile - zang";
     }, [address, lookupEns, profileInfo]);
+
+    // Set default tab based on content: show Collected if Created is empty
+    useEffect(() => {
+        if (!profileData?.stats) return;
+        const { totalCreated, totalCollected } = profileData.stats;
+        if (totalCreated === 0 && totalCollected > 0) {
+            setActiveTab("collected");
+        }
+    }, [profileData]);
 
     const shortenAddress = (addr) => {
         if (!addr) return "";
@@ -438,7 +447,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 {/* Stats */}
-                                <div className="flex gap-6 text-center">
+                                <div className="flex gap-6 text-center justify-center sm:justify-start">
                                     {isOwnProfile && formattedBalance && (
                                         <div>
                                             <div className="text-2xl font-bold text-white font-mono">
@@ -610,10 +619,22 @@ export default function ProfilePage() {
                             >
                                 Collected ({profileData?.stats?.totalCollected || 0})
                             </button>
+                            <button
+                                onClick={() => setActiveTab("history")}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                    activeTab === "history"
+                                        ? "bg-accent-cyan text-ink-950"
+                                        : "bg-ink-800 text-ink-300 hover:text-white hover:bg-ink-700"
+                                }`}
+                            >
+                                History
+                            </button>
                         </div>
 
-                        {/* NFT Grid */}
-                        {isLoading ? (
+                        {/* Content */}
+                        {activeTab === "history" ? (
+                            <UserHistory address={address} prefetchedHistory={getPrefetchedUserHistory(address)} />
+                        ) : isLoading ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {[1, 2, 3].map((i) => (
                                     <div key={i} className="bg-ink-900/50 rounded-2xl border border-ink-800 overflow-hidden">
