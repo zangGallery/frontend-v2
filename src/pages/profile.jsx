@@ -42,7 +42,6 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState("created");
-    const [copied, setCopied] = useState(false);
 
     // Edit profile state
     const [isEditing, setIsEditing] = useState(false);
@@ -183,12 +182,6 @@ export default function ProfilePage() {
         return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
     };
 
-    const copyAddress = () => {
-        navigator.clipboard.writeText(address);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     const handleSaveProfile = async () => {
         setIsSaving(true);
         setSaveError(null);
@@ -297,26 +290,41 @@ export default function ProfilePage() {
 
                                 {/* Name, Bio, and Social Links */}
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h1 className="text-2xl font-bold text-white font-mono truncate">
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                        <h1 className="text-2xl font-bold text-white font-mono truncate max-w-[200px] sm:max-w-none">
                                             {displayName || (
                                                 <Skeleton
-                                                    width={200}
+                                                    width={150}
                                                     baseColor="#27272a"
                                                     highlightColor="#3f3f46"
                                                 />
                                             )}
                                         </h1>
                                         {isOwnProfile && !isEditing && !showSetupPrompt && (
-                                            <button
-                                                onClick={() => setIsEditing(true)}
-                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-ink-800 text-ink-400 hover:text-white hover:bg-ink-700 transition-colors text-sm"
-                                            >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                </svg>
-                                                Edit
-                                            </button>
+                                            <div className="flex gap-2 shrink-0">
+                                                <button
+                                                    onClick={() => setIsEditing(true)}
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-ink-800 text-ink-400 hover:text-white hover:bg-ink-700 transition-colors text-xs"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                    Edit
+                                                </button>
+                                                <ConnectButton.Custom>
+                                                    {({ openAccountModal }) => (
+                                                        <button
+                                                            onClick={openAccountModal}
+                                                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-ink-800 text-ink-400 hover:text-white hover:bg-ink-700 transition-colors text-xs"
+                                                        >
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                            </svg>
+                                                            Wallet
+                                                        </button>
+                                                    )}
+                                                </ConnectButton.Custom>
+                                            </div>
                                         )}
                                     </div>
 
@@ -358,26 +366,6 @@ export default function ProfilePage() {
 
                                     {/* Links and Actions */}
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <button
-                                            onClick={copyAddress}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-800 text-ink-300 hover:text-white hover:bg-ink-700 transition-colors text-sm"
-                                        >
-                                            {copied ? (
-                                                <>
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                    Copied
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                                    </svg>
-                                                    <span className="font-mono">{shortenAddress(address)}</span>
-                                                </>
-                                            )}
-                                        </button>
                                         <a
                                             href={`${config.blockExplorer.url}/address/${address}`}
                                             target="_blank"
@@ -389,21 +377,6 @@ export default function ProfilePage() {
                                             </svg>
                                             Basescan
                                         </a>
-                                        {isOwnProfile && (
-                                            <ConnectButton.Custom>
-                                                {({ openAccountModal }) => (
-                                                    <button
-                                                        onClick={openAccountModal}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-800 text-ink-300 hover:text-white hover:bg-ink-700 transition-colors text-sm"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                        </svg>
-                                                        Wallet
-                                                    </button>
-                                                )}
-                                            </ConnectButton.Custom>
-                                        )}
                                         {profileInfo?.xUsername && (
                                             <a
                                                 href={`https://x.com/${profileInfo.xUsername}`}
@@ -446,45 +419,37 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
 
-                                {/* Stats */}
-                                <div className="flex gap-6 text-center justify-center sm:justify-start">
-                                    {isOwnProfile && formattedBalance && (
-                                        <div>
-                                            <div className="text-2xl font-bold text-white font-mono">
-                                                {formattedBalance} <span className="text-ink-400 text-base font-sans">ETH</span>
-                                            </div>
-                                            <div className="text-xs text-ink-400 uppercase tracking-wide">Balance</div>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <div className="text-2xl font-bold text-white font-mono">
+                                {/* Stats - compact horizontal layout */}
+                                <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm sm:text-base">
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="font-mono font-bold text-white">
                                             {isLoading ? (
-                                                <Skeleton width={40} baseColor="#27272a" highlightColor="#3f3f46" />
+                                                <Skeleton width={20} baseColor="#27272a" highlightColor="#3f3f46" inline />
                                             ) : (
                                                 profileData?.stats?.totalCreated || 0
                                             )}
-                                        </div>
-                                        <div className="text-xs text-ink-400 uppercase tracking-wide">Created</div>
+                                        </span>
+                                        <span className="text-ink-400 text-xs">created</span>
                                     </div>
-                                    <div>
-                                        <div className="text-2xl font-bold text-white font-mono">
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="font-mono font-bold text-white">
                                             {isLoading ? (
-                                                <Skeleton width={40} baseColor="#27272a" highlightColor="#3f3f46" />
+                                                <Skeleton width={20} baseColor="#27272a" highlightColor="#3f3f46" inline />
                                             ) : (
                                                 profileData?.stats?.totalCollected || 0
                                             )}
-                                        </div>
-                                        <div className="text-xs text-ink-400 uppercase tracking-wide">Collected</div>
+                                        </span>
+                                        <span className="text-ink-400 text-xs">collected</span>
                                     </div>
-                                    <div>
-                                        <div className="text-2xl font-bold text-white font-mono">
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="font-mono font-bold text-white">
                                             {isLoading ? (
-                                                <Skeleton width={60} baseColor="#27272a" highlightColor="#3f3f46" />
+                                                <Skeleton width={40} baseColor="#27272a" highlightColor="#3f3f46" inline />
                                             ) : (
-                                                <>{profileData?.stats?.totalVolume || "0"} <span className="text-ink-400 text-base font-sans">ETH</span></>
+                                                profileData?.stats?.totalVolume || "0"
                                             )}
-                                        </div>
-                                        <div className="text-xs text-ink-400 uppercase tracking-wide">Volume</div>
+                                        </span>
+                                        <span className="text-ink-400 text-xs">ETH vol</span>
                                     </div>
                                 </div>
                             </div>
