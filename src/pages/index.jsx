@@ -382,11 +382,11 @@ export default function Home() {
                             <span className="text-ink-400 hidden sm:inline">{">"}</span>{" "}
                             <TypewriterText
                                 phrases={[
-                                    "Write beauty.",
-                                    "Words forever.",
-                                    "Code is poetry.",
-                                    "Text is art.",
-                                    "Create freely.",
+                                    "Poetry, onchain.",
+                                    "Stories, forever.",
+                                    "Code as art.",
+                                    "HTML NFTs.",
+                                    "Text that lasts.",
                                 ]}
                             />
                         </h1>
