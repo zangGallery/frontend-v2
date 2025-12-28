@@ -5,6 +5,14 @@ import {
     metaMaskWallet,
     coinbaseWallet,
     portoWallet,
+    trustWallet,
+    ledgerWallet,
+    phantomWallet,
+    zerionWallet,
+    okxWallet,
+    braveWallet,
+    safeWallet,
+    frameWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { base, mainnet } from "wagmi/chains";
 import { http, createConfig } from "wagmi";
@@ -33,6 +41,19 @@ const connectors = connectorsForWallets(
                 coinbaseWallet,
                 metaMaskWallet,
                 walletConnectWallet,
+            ],
+        },
+        {
+            groupName: "More Wallets",
+            wallets: [
+                trustWallet,
+                phantomWallet,
+                zerionWallet,
+                okxWallet,
+                braveWallet,
+                ledgerWallet,
+                safeWallet,
+                frameWallet,
             ],
         },
     ],
