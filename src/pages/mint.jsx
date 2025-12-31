@@ -203,8 +203,10 @@ export default function Mint() {
                 });
 
                 if (transferLog) {
-                    // Token ID is in the 4th topic (index 3) for TransferSingle
-                    const tokenId = BigInt(transferLog.topics[3]).toString();
+                    // TransferSingle: id and value are in data (not indexed)
+                    // data = abi.encode(uint256 id, uint256 value)
+                    // First 32 bytes (64 hex chars) = token ID
+                    const tokenId = BigInt(transferLog.data.slice(0, 66)).toString();
                     return (
                         <div className="space-y-2">
                             <p>
