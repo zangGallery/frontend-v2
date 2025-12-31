@@ -1003,6 +1003,7 @@ export default function NFTPage() {
                                                     onUpdate={onUpdate}
                                                     walletAddress={walletAddress}
                                                     fullWidth
+                                                    ethPrice={ethPrice}
                                                 />
 
                                                 {/* Secondary action - Transfer */}

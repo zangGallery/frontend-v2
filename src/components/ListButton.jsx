@@ -17,6 +17,7 @@ export default function ListButton({
     onUpdate,
     walletAddress,
     fullWidth = false,
+    ethPrice = null,
 }) {
     const marketplaceAddress = config.contractAddresses.v1.marketplace;
     const marketplaceABI = v1.marketplace;
@@ -84,6 +85,7 @@ export default function ListButton({
                 id={id}
                 walletAddress={walletAddress}
                 onUpdate={onUpdate}
+                ethPrice={ethPrice}
             />
         </Fragment>
     );

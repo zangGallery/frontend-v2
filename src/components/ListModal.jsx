@@ -26,6 +26,7 @@ export default function ListModal({
     id,
     walletAddress,
     onUpdate,
+    ethPrice = null,
 }) {
     const zangAddress = config.contractAddresses.v1.zang;
     const zangABI = v1.zang;
@@ -43,6 +44,12 @@ export default function ListModal({
     });
 
     const watchAmount = watch("amount");
+    const watchPrice = watch("price");
+
+    const formatUsd = (ethAmount) => {
+        if (!ethPrice || !ethAmount || isNaN(parseFloat(ethAmount))) return null;
+        return (parseFloat(ethAmount) * ethPrice).toFixed(2);
+    };
 
     const closeModal = (data) => {
         setIsOpen(false);
@@ -169,15 +176,22 @@ export default function ListModal({
                         errors={errors}
                         register={register}
                     />
-                    <ValidatedInput
-                        label="Price per item (ETH)"
-                        name="price"
-                        type="number"
-                        step="0.001"
-                        min="0"
-                        errors={errors}
-                        register={register}
-                    />
+                    <div>
+                        <ValidatedInput
+                            label="Price per item (ETH)"
+                            name="price"
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            errors={errors}
+                            register={register}
+                        />
+                        {formatUsd(watchPrice) && (
+                            <p className="text-sm text-ink-400 mt-1">
+                                ≈ ${formatUsd(watchPrice)} USD
+                            </p>
+                        )}
+                    </div>
 
                     {watchAmount > Math.min(balance, availableAmount) &&
                         (watchAmount <= balance ? (
