@@ -242,7 +242,7 @@ export default function Mint() {
                     BigInt(data.editionSize),
                     BigInt(effectiveRoyaltyPercentage),
                     effectiveRoyaltyRecipient,
-                    0n,
+                    "0x", // empty bytes - was incorrectly 0n (BigInt)
                 ],
                 ...getGasSettings(),
             });
