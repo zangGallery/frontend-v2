@@ -63,11 +63,14 @@ const connectors = connectorsForWallets(
     }
 );
 
+// Export chains for use elsewhere (ensures consistency)
+export const chains = [baseOptimized, mainnet];
+
 export const config = createConfig({
     connectors,
-    chains: [baseOptimized, mainnet],
+    chains,
     transports: {
-        [base.id]: alchemyBaseKey
+        [baseOptimized.id]: alchemyBaseKey
             ? http(`https://base-mainnet.g.alchemy.com/v2/${alchemyBaseKey}`)
             : http(),
         [mainnet.id]: alchemyMainnetKey

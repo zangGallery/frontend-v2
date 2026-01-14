@@ -3,7 +3,7 @@ import config from "../config";
 import getGasSettings from "../common/gas";
 import { useRecoilState } from "recoil";
 import { standardErrorState } from "../common/error";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrashAlt } from "@fortawesome/free-solid-svg-icons";
@@ -20,6 +20,7 @@ export default function DelistButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
     const [_, setStandardError] = useRecoilState(standardErrorState);
 
     const handleTransaction = useTransactionHelper();

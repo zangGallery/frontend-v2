@@ -5,7 +5,7 @@ import { parseEther } from "viem";
 import { v1 } from "../common/abi";
 import { useRecoilState } from "recoil";
 import { standardErrorState } from "../common/error";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import BuyModal from "./BuyModal";
 import { useTransactionHelper } from "../common/transaction_status";
@@ -25,6 +25,7 @@ export default function BuyButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
     const [_, setStandardError] = useRecoilState(standardErrorState);
 
     const handleTransaction = useTransactionHelper();
@@ -41,8 +42,8 @@ export default function BuyButton({
             setStandardError("Could not determine the ID of the NFT.");
             return;
         }
-        if (!isConnected) {
-            setStandardError("Please connect a wallet.");
+        if (!isConnected || connections.length === 0) {
+            setStandardError("Please connect your wallet. If already connected, try disconnecting and reconnecting.");
             return;
         }
 

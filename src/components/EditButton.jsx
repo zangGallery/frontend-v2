@@ -3,7 +3,7 @@ import config from "../config";
 import getGasSettings from "../common/gas";
 import { parseEther } from "viem";
 import { v1 } from "../common/abi";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import EditModal from "./EditModal";
 
@@ -30,6 +30,7 @@ export default function EditButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
 
     const handleTransaction = useTransactionHelper();
 

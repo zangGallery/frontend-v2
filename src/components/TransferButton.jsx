@@ -4,7 +4,7 @@ import { v1 } from "../common/abi";
 import config from "../config";
 import getGasSettings from "../common/gas";
 import { mainnetClient } from "../common/provider";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import TransferModal from "./TransferModal";
 import { useTransactionHelper } from "../common/transaction_status";
@@ -24,6 +24,7 @@ export default function TransferButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
 
     const handleTransaction = useTransactionHelper();
 

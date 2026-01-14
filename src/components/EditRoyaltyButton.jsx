@@ -3,7 +3,7 @@ import { v1 } from "../common/abi";
 import config from "../config";
 import getGasSettings from "../common/gas";
 import Decimal from "decimal.js";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import EditRoyaltyModal from "./EditRoyaltyModal";
 import { useTransactionHelper } from "../common/transaction_status";
@@ -22,6 +22,7 @@ export default function EditRoyaltyButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
     const handleTransaction = useTransactionHelper();
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [_, setStandardError] = useRecoilState(standardErrorState);

@@ -3,7 +3,7 @@ import { useRecoilState } from "recoil";
 import { v1 } from "../common/abi";
 import config from "../config";
 import getGasSettings from "../common/gas";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import BurnModal from "./BurnModal";
 import { useTransactionHelper } from "../common/transaction_status";
@@ -23,6 +23,7 @@ export default function BurnButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
 
     const [burnModalOpen, setBurnModalOpen] = useState(false);
 

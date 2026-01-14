@@ -36,6 +36,12 @@ const formatError = (e) => {
             return "Network error. Please check your internet connection.";
         }
 
+        // Handle wallet connector errors (wagmi/rainbowkit issue)
+        if (e.message.includes("getChainId is not a function") ||
+            e.message.includes("connector.getChainId")) {
+            return "Wallet connection error. Please disconnect your wallet completely, refresh the page, and reconnect.";
+        }
+
         return sanitizeMessage(e.message);
     }
     return "Unknown error.";

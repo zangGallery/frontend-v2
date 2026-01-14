@@ -10,7 +10,7 @@ import { formatError, standardErrorState } from "../common/error";
 import { v1 } from "../common/abi";
 import config from "../config";
 import getGasSettings from "../common/gas";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 const defaultValues = {
     amount: 1,
@@ -83,6 +83,7 @@ export default function ListModal({
     const [isApproved, setIsApproved] = useState(false);
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
 
     const approveMarketplace = async () => {
         if (!isConnected) {

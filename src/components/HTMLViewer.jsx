@@ -90,19 +90,14 @@ export default function HTMLViewer({ source, compact = false }) {
 
     const sanitize = (html) => {
         const sanitized = DOMPurify.sanitize(html, purifyConfig);
-        // Minimal wrapper - only set defaults that user can override
+        // Minimal wrapper - only reset browser defaults, don't modify content styling
         return `<!DOCTYPE html>
 <html>
 <head>
     <style>
-        * { box-sizing: border-box; }
         html, body {
             margin: 0;
             padding: 0;
-            min-height: 100%;
-            background: #18181b;
-            color: #e4e4e7;
-            font-family: system-ui, -apple-system, sans-serif;
         }
     </style>
 </head>

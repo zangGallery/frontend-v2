@@ -13,7 +13,7 @@ import { schemas } from "../common";
 import getGasSettings from "../common/gas";
 import { MintConfirmModal, MultiEditor, RoutingLink } from "../components";
 import { Header } from "../components";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import "../styles/tailwind.css";
 import "../styles/globals.css";
@@ -107,6 +107,7 @@ export default function Mint() {
     const [text, setText] = useState("");
     const { isConnected, address } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
     const [transactionState] = useState({ status: "noTransaction" });
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -121,8 +122,8 @@ export default function Mint() {
     const zangAddress = config.contractAddresses.v1.zang;
 
     const executeTransaction = (mintConfirmed) => async (data) => {
-        if (!isConnected) {
-            setStandardError("Please connect a wallet.");
+        if (!isConnected || connections.length === 0) {
+            setStandardError("Please connect your wallet. If already connected, try disconnecting and reconnecting.");
             return;
         }
         // Add non-React Hook Form fields

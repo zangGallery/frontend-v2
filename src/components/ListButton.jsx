@@ -5,7 +5,7 @@ import { ListModal } from ".";
 import config from "../config";
 import getGasSettings from "../common/gas";
 import { useTransactionHelper } from "../common/transaction_status";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useConnections } from "wagmi";
 
 import { useRecoilState } from "recoil";
 import { standardErrorState } from "../common/error";
@@ -24,6 +24,7 @@ export default function ListButton({
 
     const { isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const connections = useConnections();
     const handleTransaction = useTransactionHelper();
 
     const [listModalOpen, setListModalOpen] = useState(false);
