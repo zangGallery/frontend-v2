@@ -254,4 +254,14 @@ async function startServer() {
     });
 }
 
+// Graceful shutdown
+process.on("SIGTERM", async () => {
+    console.log("SIGTERM received, shutting down gracefully...");
+    server.close(() => console.log("HTTP server closed"));
+    await ogGenerator.closeBrowser().catch(() => {});
+    await pool.end().catch(() => {});
+    console.log("Cleanup complete");
+    process.exit(0);
+});
+
 startServer().catch(console.error);

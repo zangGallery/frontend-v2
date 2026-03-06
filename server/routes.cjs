@@ -4,8 +4,6 @@ const {
     publicClient,
     getNFTData,
     getBlockTimestamp,
-    fetchNFTMetadata,
-    isValidAddress,
 } = require("./blockchain.cjs");
 const {
     getSyncState,
@@ -20,6 +18,28 @@ const {
 const SYNC_INTERVAL_MS = 30000;
 
 function registerRoutes(app) {
+    // Health check
+    app.get("/api/health", async (req, res) => {
+        try {
+            const dbResult = await pool.query("SELECT 1");
+            const { lastSyncBlock, lastSyncTime, isSyncing } = getSyncState();
+            res.json({
+                status: "ok",
+                db: dbResult.rows.length === 1 ? "connected" : "error",
+                lastSyncBlock,
+                lastSyncTime: lastSyncTime?.toISOString() || null,
+                isSyncing,
+                uptime: Math.floor(process.uptime()),
+            });
+        } catch (error) {
+            res.status(503).json({
+                status: "error",
+                db: "disconnected",
+                error: error.message,
+            });
+        }
+    });
+
     // API: Get NFT data (immutable, cached)
     app.get("/api/nft/:id", async (req, res) => {
         try {
@@ -626,138 +646,124 @@ function registerRoutes(app) {
         }
     });
 
-    // API: Get top artists by volume (ties broken by total minted)
+    // API: Get top artists by volume (single efficient CTE query)
     app.get("/api/top-artists", async (req, res) => {
         try {
             const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
 
-            const artistsResult = await pool.query(
-                `SELECT DISTINCT LOWER(author) as address FROM nfts`
-            );
-
-            const artists = [];
-
-            for (const row of artistsResult.rows) {
-                const address = row.address;
-
-                const createdResult = await pool.query(
-                    `SELECT COUNT(*) as count FROM nfts WHERE LOWER(author) = $1`,
-                    [address]
-                );
-                const totalCreated = parseInt(createdResult.rows[0].count, 10);
-
-                const volumeResult = await pool.query(
-                    `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
-                     FROM events
-                     WHERE event_type = 'TokenPurchased'
-                       AND LOWER(data->>'_seller') = $1`,
-                    [address]
-                );
-                const volumeWei = BigInt(volumeResult.rows[0].volume || 0);
-                const volumeEth = Number(volumeWei) / 1e18;
-
-                artists.push({
+            const result = await pool.query(`
+                WITH artist_volumes AS (
+                    SELECT
+                        LOWER(data->>'_seller') as address,
+                        SUM((data->>'_price')::numeric * (data->>'_amount')::numeric) as volume_wei
+                    FROM events
+                    WHERE event_type = 'TokenPurchased'
+                    GROUP BY LOWER(data->>'_seller')
+                ),
+                artist_stats AS (
+                    SELECT
+                        LOWER(n.author) as address,
+                        COUNT(*) as total_created,
+                        COALESCE(av.volume_wei, 0) as volume_wei
+                    FROM nfts n
+                    LEFT JOIN artist_volumes av ON LOWER(n.author) = av.address
+                    GROUP BY LOWER(n.author), av.volume_wei
+                )
+                SELECT
                     address,
-                    totalCreated,
-                    volumeEth,
-                });
-            }
+                    total_created::int,
+                    (volume_wei / 1e18)::numeric as volume_eth
+                FROM artist_stats
+                ORDER BY volume_wei DESC, total_created DESC
+                LIMIT $1
+            `, [limit]);
 
-            artists.sort((a, b) => {
-                if (b.volumeEth !== a.volumeEth) {
-                    return b.volumeEth - a.volumeEth;
-                }
-                return b.totalCreated - a.totalCreated;
-            });
+            const artists = result.rows.map(r => ({
+                address: r.address,
+                totalCreated: r.total_created,
+                volumeEth: parseFloat(r.volume_eth) || 0,
+            }));
 
-            res.json({ artists: artists.slice(0, limit) });
+            res.json({ artists });
         } catch (error) {
             console.error("Failed to fetch top artists:", error.message);
             res.status(500).json({ error: "Failed to fetch top artists" });
         }
     });
 
-    // API: Get top collectors by volume (ties broken by total collected)
+    // API: Get top collectors by volume (single efficient CTE query)
     app.get("/api/top-collectors", async (req, res) => {
         try {
             const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
 
-            const collectorsResult = await pool.query(
-                `SELECT DISTINCT LOWER(data->>'to') as address
-                 FROM events
-                 WHERE event_type = 'TransferSingle'
-                   AND data->>'to' != '0x0000000000000000000000000000000000000000'`
-            );
+            const result = await pool.query(`
+                WITH collector_volumes AS (
+                    SELECT
+                        LOWER(data->>'_buyer') as address,
+                        SUM((data->>'_price')::numeric * (data->>'_amount')::numeric) as volume_wei
+                    FROM events
+                    WHERE event_type = 'TokenPurchased'
+                    GROUP BY LOWER(data->>'_buyer')
+                ),
+                received_tokens AS (
+                    SELECT
+                        LOWER(data->>'to') as address,
+                        token_id,
+                        SUM((data->>'value')::bigint) as received
+                    FROM events
+                    WHERE event_type = 'TransferSingle'
+                      AND data->>'to' != '0x0000000000000000000000000000000000000000'
+                    GROUP BY LOWER(data->>'to'), token_id
+                ),
+                sent_tokens AS (
+                    SELECT
+                        LOWER(data->>'from') as address,
+                        token_id,
+                        SUM((data->>'value')::bigint) as sent
+                    FROM events
+                    WHERE event_type = 'TransferSingle'
+                    GROUP BY LOWER(data->>'from'), token_id
+                ),
+                token_balances AS (
+                    SELECT
+                        COALESCE(r.address, s.address) as address,
+                        COALESCE(r.token_id, s.token_id) as token_id,
+                        COALESCE(r.received, 0) - COALESCE(s.sent, 0) as balance
+                    FROM received_tokens r
+                    FULL OUTER JOIN sent_tokens s
+                        ON r.address = s.address AND r.token_id = s.token_id
+                ),
+                authored_tokens AS (
+                    SELECT LOWER(author) as address, token_id
+                    FROM nfts
+                ),
+                collector_counts AS (
+                    SELECT
+                        tb.address,
+                        COUNT(DISTINCT tb.token_id) as total_collected
+                    FROM token_balances tb
+                    LEFT JOIN authored_tokens at ON tb.address = at.address AND tb.token_id = at.token_id
+                    WHERE tb.balance > 0 AND at.token_id IS NULL
+                    GROUP BY tb.address
+                )
+                SELECT
+                    COALESCE(cv.address, cc.address) as address,
+                    COALESCE(cc.total_collected, 0)::int as total_collected,
+                    (COALESCE(cv.volume_wei, 0) / 1e18)::numeric as volume_eth
+                FROM collector_volumes cv
+                FULL OUTER JOIN collector_counts cc ON cv.address = cc.address
+                WHERE COALESCE(cv.volume_wei, 0) > 0 OR COALESCE(cc.total_collected, 0) > 0
+                ORDER BY COALESCE(cv.volume_wei, 0) DESC, COALESCE(cc.total_collected, 0) DESC
+                LIMIT $1
+            `, [limit]);
 
-            const collectors = [];
+            const collectors = result.rows.map(r => ({
+                address: r.address,
+                totalCollected: r.total_collected,
+                volumeEth: parseFloat(r.volume_eth) || 0,
+            }));
 
-            for (const row of collectorsResult.rows) {
-                const address = row.address;
-                if (!address) continue;
-
-                const receivedResult = await pool.query(
-                    `SELECT token_id, SUM((data->>'value')::bigint) as received
-                     FROM events
-                     WHERE event_type = 'TransferSingle'
-                       AND LOWER(data->>'to') = $1
-                     GROUP BY token_id`,
-                    [address]
-                );
-
-                const sentResult = await pool.query(
-                    `SELECT token_id, SUM((data->>'value')::bigint) as sent
-                     FROM events
-                     WHERE event_type = 'TransferSingle'
-                       AND LOWER(data->>'from') = $1
-                     GROUP BY token_id`,
-                    [address]
-                );
-
-                const authoredResult = await pool.query(
-                    `SELECT token_id FROM nfts WHERE LOWER(author) = $1`,
-                    [address]
-                );
-                const authoredTokenIds = new Set(authoredResult.rows.map(r => r.token_id.toString()));
-
-                const balanceMap = {};
-                for (const r of receivedResult.rows) {
-                    balanceMap[r.token_id] = (balanceMap[r.token_id] || 0n) + BigInt(r.received);
-                }
-                for (const r of sentResult.rows) {
-                    balanceMap[r.token_id] = (balanceMap[r.token_id] || 0n) - BigInt(r.sent);
-                }
-
-                const totalCollected = Object.entries(balanceMap)
-                    .filter(([tokenId, balance]) => balance > 0n && !authoredTokenIds.has(tokenId))
-                    .length;
-
-                const volumeResult = await pool.query(
-                    `SELECT COALESCE(SUM((data->>'_price')::numeric * (data->>'_amount')::numeric), 0) as volume
-                     FROM events
-                     WHERE event_type = 'TokenPurchased'
-                       AND LOWER(data->>'_buyer') = $1`,
-                    [address]
-                );
-                const volumeWei = BigInt(volumeResult.rows[0].volume || 0);
-                const volumeEth = Number(volumeWei) / 1e18;
-
-                if (volumeEth > 0 || totalCollected > 0) {
-                    collectors.push({
-                        address,
-                        totalCollected,
-                        volumeEth,
-                    });
-                }
-            }
-
-            collectors.sort((a, b) => {
-                if (b.volumeEth !== a.volumeEth) {
-                    return b.volumeEth - a.volumeEth;
-                }
-                return b.totalCollected - a.totalCollected;
-            });
-
-            res.json({ collectors: collectors.slice(0, limit) });
+            res.json({ collectors });
         } catch (error) {
             console.error("Failed to fetch top collectors:", error.message);
             res.status(500).json({ error: "Failed to fetch top collectors" });

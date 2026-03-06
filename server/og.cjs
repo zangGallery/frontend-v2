@@ -172,7 +172,8 @@ async function processOGQueue(ogGenerator) {
             `SELECT COUNT(*) as count FROM og_images WHERE status = 'pending'`
         );
         if (parseInt(remaining.rows[0].count, 10) > 0) {
-            setTimeout(() => processOGQueue(ogGenerator).catch(() => {}), 2000);
+            setTimeout(() => processOGQueue(ogGenerator).catch(e =>
+                console.error("OG queue batch failed:", e.message)), 2000);
         }
 
         return { processed };
