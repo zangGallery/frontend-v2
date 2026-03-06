@@ -1396,6 +1396,12 @@ async function getRecentEvents(limit = 500) {
 app.post("/api/sync", async (req, res) => {
     try {
         const result = await syncAllEvents();
+        if (result.eventsCount > 0) {
+            await updateTokenStats().catch(() => {});
+            await updateAuthorStats().catch(() => {});
+            await updateLeaderboards().catch(() => {});
+            await buildHomePageCache().catch(() => {});
+        }
         res.json(result);
     } catch (error) {
         console.error("Sync failed:", error.message);
@@ -2514,6 +2520,8 @@ app.post("/api/sync/force", async (req, res) => {
         if (result.synced) {
             await updateTokenStats().catch(() => {});
             await updateAuthorStats().catch(() => {});
+            await updateLeaderboards().catch(() => {});
+            await buildHomePageCache().catch(() => {});
         }
 
         res.json({
@@ -2765,7 +2773,8 @@ async function startBackgroundSync() {
     const runMarketplaceSync = async () => {
         try {
             await syncMarketplaceListings();
-            // Rebuild home page cache after marketplace sync
+            // Rebuild leaderboards and home page cache after marketplace sync
+            await updateLeaderboards().catch(() => {});
             await buildHomePageCache().catch(() => {});
         } catch (e) {
             console.error("Marketplace sync error:", e.message);
