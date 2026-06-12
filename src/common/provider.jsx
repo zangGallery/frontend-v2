@@ -54,11 +54,8 @@ if (typeof window !== 'undefined') {
 // Base public client (internal)
 const _baseClient = createPublicClient({
     chain: base,
-    transport: config.api_keys.alchemy_base
-        ? http(
-              `https://base-mainnet.g.alchemy.com/v2/${config.api_keys.alchemy_base}`,
-          )
-        : http(),
+    transport: http(config.networks.main.rpcUrl),
+    batch: { multicall: true },
 });
 
 // Wrapped public client with RPC tracking
@@ -90,11 +87,8 @@ export const publicClient = new Proxy(_baseClient, {
 // Public client for Mainnet (ENS resolution)
 export const mainnetClient = createPublicClient({
     chain: mainnet,
-    transport: config.api_keys.alchemy_mainnet
-        ? http(
-              `https://eth-mainnet.g.alchemy.com/v2/${config.api_keys.alchemy_mainnet}`,
-          )
-        : http("https://eth.llamarpc.com"),
+    transport: http(config.networks.ens.rpcUrl),
+    batch: { multicall: true },
 });
 
 // Export Base client for Base ENS (Basenames) resolution

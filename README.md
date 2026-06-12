@@ -31,10 +31,18 @@ npm install
 Create a `.env` file:
 
 ```
-VITE_ALCHEMY_BASE_API_KEY=your_alchemy_key
-VITE_ALCHEMY_MAINNET_API_KEY=your_alchemy_key
+# All optional — defaults to free public RPCs (Tenderly gateway for Base,
+# PublicNode for mainnet ENS). See .env.example for details.
+VITE_BASE_RPC_URL=https://base.gateway.tenderly.co
+VITE_MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com
 DATABASE_URL=postgresql://user:pass@host:port/db  # Optional for local dev
 ```
+
+The Base RPC must support `eth_getLogs` over multi-million block ranges
+(the event sync uses 500k-block chunks and the frontend history fallback
+queries from contract deployment to latest). Most free RPCs cap the block
+range and won't work. Run `node scripts/test-base-rpcs.mjs` to test which
+endpoints currently qualify.
 
 ### Running Locally
 
@@ -80,11 +88,15 @@ The app is deployed on Railway. The Express server (`server.cjs`) handles:
 ### Required Environment Variables on Railway
 
 ```
-VITE_ALCHEMY_BASE_API_KEY=your_alchemy_key    # For client-side RPC
-VITE_ALCHEMY_MAINNET_API_KEY=your_alchemy_key # For ENS resolution
-ALCHEMY_BASE_API_KEY=your_alchemy_key         # For server-side OG tags (optional, falls back to public RPC)
-DATABASE_URL=postgresql://...                  # PostgreSQL connection string
+BASE_RPC_URL=https://base.gateway.tenderly.co        # Server-side Base RPC
+VITE_BASE_RPC_URL=https://base.gateway.tenderly.co   # Client-side Base RPC
+VITE_MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com # ENS resolution
+DATABASE_URL=postgresql://...                         # PostgreSQL connection string
 ```
+
+Alchemy keys (`ALCHEMY_BASE_API_KEY`, `VITE_ALCHEMY_BASE_API_KEY`,
+`VITE_ALCHEMY_MAINNET_API_KEY`) are still supported as a fallback when the
+corresponding `*_RPC_URL` variable is not set.
 
 ### Deploy Commands (configured in railway.json)
 

@@ -18,7 +18,7 @@ test.describe("Profile Page Performance", () => {
                     time: Date.now(),
                 });
             }
-            if (url.includes("alchemy.com") || url.includes("infura.io")) {
+            if (url.includes("alchemy.com") || url.includes("infura.io") || url.includes("gateway.tenderly.co")) {
                 rpcCalls.push({
                     url,
                     time: Date.now(),

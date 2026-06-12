@@ -7,17 +7,20 @@ const ZANG_CONTRACT = "0x5541ff300e9b01176b953EA3153006e36D4BA273";
 const MARKETPLACE_ADDRESS = "0xbD5C4612084eA90847DeB475529aC74B3521498d";
 const FIRST_ZANG_BLOCK = 5300011;
 
-// RPC setup
+// RPC setup — must support eth_getLogs over 500k+ block ranges (see scripts/test-base-rpcs.mjs)
 const ALCHEMY_KEY =
     process.env.ALCHEMY_BASE_API_KEY || process.env.VITE_ALCHEMY_BASE_API_KEY;
-const BASE_RPC = ALCHEMY_KEY
-    ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
-    : "https://mainnet.base.org";
+const BASE_RPC =
+    process.env.BASE_RPC_URL ||
+    (ALCHEMY_KEY
+        ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
+        : "https://base.gateway.tenderly.co");
 const SITE_URL = process.env.SITE_URL || "https://www.zang.gallery";
 
 const publicClient = createPublicClient({
     chain: base,
     transport: viemHttp(BASE_RPC),
+    batch: { multicall: true },
 });
 
 // ABIs

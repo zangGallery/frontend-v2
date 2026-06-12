@@ -61,7 +61,7 @@ test.describe("Homepage Performance", () => {
     test("profile page loads without excessive requests", async ({ page }) => {
         const requests = [];
         page.on("request", (request) => {
-            if (request.url().includes("alchemy.com")) {
+            if (request.url().includes("alchemy.com") || request.url().includes("gateway.tenderly.co")) {
                 requests.push(request.url());
             }
         });

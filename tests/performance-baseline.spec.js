@@ -31,7 +31,7 @@ test.describe("Performance Baseline", () => {
                     time: Date.now() - metrics.startTime,
                 });
             }
-            if (url.includes("alchemy.com") || url.includes("base.org")) {
+            if (url.includes("alchemy.com") || url.includes("base.org") || url.includes("gateway.tenderly.co")) {
                 metrics.rpcCalls.push({
                     url: url.substring(0, 80),
                     time: Date.now() - metrics.startTime,

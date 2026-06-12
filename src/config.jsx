@@ -1,3 +1,21 @@
+const alchemyBaseKey = import.meta.env.VITE_ALCHEMY_BASE_API_KEY;
+const alchemyMainnetKey = import.meta.env.VITE_ALCHEMY_MAINNET_API_KEY;
+
+// RPC resolution: explicit URL > Alchemy key > free public RPC.
+// The Base RPC must support eth_getLogs over multi-million block ranges
+// (see scripts/test-base-rpcs.mjs for which free endpoints qualify).
+const baseRpcUrl =
+    import.meta.env.VITE_BASE_RPC_URL ||
+    (alchemyBaseKey
+        ? `https://base-mainnet.g.alchemy.com/v2/${alchemyBaseKey}`
+        : "https://base.gateway.tenderly.co");
+
+const mainnetRpcUrl =
+    import.meta.env.VITE_MAINNET_RPC_URL ||
+    (alchemyMainnetKey
+        ? `https://eth-mainnet.g.alchemy.com/v2/${alchemyMainnetKey}`
+        : "https://ethereum-rpc.publicnode.com");
+
 const config = {
     contractAddresses: {
         v1: {
@@ -17,16 +35,13 @@ const config = {
         main: {
             name: "Base",
             chainId: 8453,
-            rpcUrl: `https://base-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_BASE_API_KEY}`,
+            rpcUrl: baseRpcUrl,
         },
         ens: {
             name: "ENS",
             chainId: 1,
+            rpcUrl: mainnetRpcUrl,
         },
-    },
-    api_keys: {
-        alchemy_base: import.meta.env.VITE_ALCHEMY_BASE_API_KEY,
-        alchemy_mainnet: import.meta.env.VITE_ALCHEMY_MAINNET_API_KEY,
     },
     ens: {
         cacheExpiration: 1000 * 60 * 2, // 2 minutes

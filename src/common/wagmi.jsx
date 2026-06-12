@@ -16,6 +16,7 @@ import {
 } from "@rainbow-me/rainbowkit/wallets";
 import { base, mainnet } from "wagmi/chains";
 import { http, createConfig } from "wagmi";
+import appConfig from "../config";
 
 // Custom Base chain with optimized fee settings
 const baseOptimized = {
@@ -25,9 +26,6 @@ const baseOptimized = {
         defaultPriorityFee: 10n, // 10 wei
     },
 };
-
-const alchemyBaseKey = import.meta.env.VITE_ALCHEMY_BASE_API_KEY;
-const alchemyMainnetKey = import.meta.env.VITE_ALCHEMY_MAINNET_API_KEY;
 
 const projectId = "3a8170812b534d0ff9d794f19a901d64"; // WalletConnect project ID
 
@@ -70,14 +68,8 @@ export const config = createConfig({
     connectors,
     chains,
     transports: {
-        [baseOptimized.id]: alchemyBaseKey
-            ? http(`https://base-mainnet.g.alchemy.com/v2/${alchemyBaseKey}`)
-            : http(),
-        [mainnet.id]: alchemyMainnetKey
-            ? http(
-                  `https://eth-mainnet.g.alchemy.com/v2/${alchemyMainnetKey}`,
-              )
-            : http(),
+        [baseOptimized.id]: http(appConfig.networks.main.rpcUrl),
+        [mainnet.id]: http(appConfig.networks.ens.rpcUrl),
     },
     ssr: false,
 });
